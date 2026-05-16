@@ -20,6 +20,7 @@ import MapControls from "./MapControls";
 import HUDOverlay from "./HUDOverlay";
 import CreateTradeModal from "./CreateTradeModal";
 import ChatModal from "./ChatModal";
+import MessagesHub, { type Conversation } from "./MessagesHub";
 
 export type Mode = "view" | "placing-custom" | "setting-location";
 
@@ -89,6 +90,16 @@ export default function BlackoutMap() {
     recipientId: number;
     recipientName: string;
   } | null>(null);
+  // Persisted list of everyone the current user has opened a chat with.
+  // Loaded from localStorage on mount (safe here because BlackoutMap is ssr:false).
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    try {
+      const raw = localStorage.getItem("barter-conversations");
+      return raw ? (JSON.parse(raw) as Conversation[]) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     const channel = supabase
@@ -174,6 +185,16 @@ export default function BlackoutMap() {
     recipientName: string,
   ) => {
     setSelectedChat({ tradeOfferId, recipientId, recipientName });
+    // Add to conversation history if this pair hasn't been chatted before
+    setConversations((prev) => {
+      const exists = prev.some(
+        (c) => c.tradeOfferId === tradeOfferId && c.recipientId === recipientId,
+      );
+      if (exists) return prev;
+      const updated = [...prev, { tradeOfferId, recipientId, recipientName }];
+      localStorage.setItem("barter-conversations", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   return (
@@ -275,6 +296,11 @@ export default function BlackoutMap() {
           onClose={() => setSelectedChat(null)}
         />
       )}
+
+      <MessagesHub
+        conversations={conversations}
+        onOpenChat={handleMessageClick}
+      />
     </div>
   );
 }

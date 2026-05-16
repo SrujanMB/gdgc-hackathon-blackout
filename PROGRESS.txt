@@ -1,0 +1,74 @@
+BLACKOUT - Session Progress
+===========================
+
+## WHAT WORKS
+- Login / Signup auth flow (routes + context)
+- Redirects to map after login
+- Map loads trade offer nodes
+- ChatModal opens per trade offer
+- Supabase Realtime WebSocket subscription wired up (replaces polling)
+- Message table created in Supabase
+
+## WHAT WE FIXED
+
+1. DB COLUMN NAME MISMATCH (User table)
+   - User table PK is "UserID" not "userID" or "id"
+   - Fixed in: types.ts, login/route.ts, signup/route.ts
+   - Also fixed: signup was selecting "id" instead of "UserID" for duplicate check
+
+2. AUTH REDIRECT NOT WORKING
+   - Root cause: AuthProvider reads localStorage once on mount. After login,
+     context state was still null so map page redirected back to /login.
+   - Fix: added login(user) function to auth-context.tsx. Login/signup pages now
+     call login() before router.push("/") so context is populated immediately.
+
+3. MERGE CONFLICT (ChatModal.tsx, origin/chats branch)
+   - Resolved keeping HEAD version (auth-based user ID over hardcoded mock ID=1)
+
+4. WEBSOCKET / REALTIME
+   - Replaced 2-second polling with Supabase Realtime postgres_changes subscription
+   - Message table added to supabase_realtime publication via:
+     ALTER PUBLICATION supabase_realtime ADD TABLE "Message";
+   - Channel is cleaned up on modal unmount
+
+5. COLUMN MISMATCH (Trade_Offer table)
+   - types.ts had "user_id" but actual DB column is "UserID"
+   - Fixed in: types.ts, map-points/route.ts (select + insert)
+
+6. recipientId BUG
+   - BlackoutMap was passing node.id (trade offer ID) as recipientId
+   - Fixed to pass node.userId (the offer owner's UserID)
+   - map-points GET now fetches and returns UserID per offer
+
+
+## WHAT IS STILL BROKEN / TODO
+
+- Messages not saving end to end
+  - Likely cause: old trade offers have UserID=null so recipientId=0,
+    which hits FK constraint on Message table (sender_id/receiver_id
+    both reference User.UserID)
+  - Fix attempted: drop FK constraints on Message table, then re-create
+    trade offers while logged in so UserID is saved correctly
+  - SQL to drop constraints (run in Supabase SQL editor):
+      ALTER TABLE "Message" DROP CONSTRAINT IF EXISTS "Message_sender_id_fkey";
+      ALTER TABLE "Message" DROP CONSTRAINT IF EXISTS "Message_receiver_id_fkey";
+
+- After dropping constraints, user must:
+  1. Log out and log back in (old sessions have userID=null in localStorage)
+  2. Delete old trade offers and create new ones (so UserID is stored)
+  3. Test chat between two accounts on two browsers
+
+- Realtime may not deliver messages to sender's own screen
+  - Considered adding optimistic update back (append message immediately on send)
+  - Reverted per user request — revisit if needed
+
+
+## KEY FILE MAP
+- app/api/auth/login/route.ts     — login endpoint
+- app/api/auth/signup/route.ts    — signup endpoint
+- app/api/messages/route.ts       — GET/POST messages
+- app/api/map-points/route.ts     — GET/POST/DELETE trade offers
+- components/ChatModal.tsx        — chat UI + realtime subscription
+- components/BlackoutMap.tsx      — map + opens ChatModal
+- lib/auth-context.tsx            — user state, login(), logout()
+- types.ts                        — Supabase generated DB types (manually corrected)
