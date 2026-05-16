@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 interface Message {
   id: number;
@@ -34,7 +35,6 @@ export default function ChatModal({
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Use authenticated user ID
   const currentUserId = user?.userID || 1;
 
   const scrollToBottom = () => {
@@ -45,8 +45,9 @@ export default function ChatModal({
     scrollToBottom();
   }, [messages]);
 
-  // Fetch messages on mount and poll for new ones
   useEffect(() => {
+    let ignore = false;
+
     const fetchMessages = async () => {
       setIsLoading(true);
       try {
@@ -54,32 +55,50 @@ export default function ChatModal({
           `/api/messages?senderId=${currentUserId}&receiverId=${recipientId}&tradeOfferId=${tradeOfferId}`,
         );
         const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Failed to load messages");
-          setMessages([]);
-          return;
+        if (!ignore) {
+          if (!res.ok) {
+            setError(data.error || "Failed to load messages");
+            setMessages([]);
+            return;
+          }
+          setMessages(Array.isArray(data) ? data : []);
+          setError("");
         }
-
-        if (Array.isArray(data)) {
-          setMessages(data);
-        } else {
+      } catch {
+        if (!ignore) {
+          setError("Failed to load messages");
           setMessages([]);
         }
-        setError("");
-      } catch (err: any) {
-        setError("Failed to load messages");
-        setMessages([]);
-        console.error(err);
       } finally {
-        setIsLoading(false);
+        if (!ignore) setIsLoading(false);
       }
     };
 
     fetchMessages();
 
-    // Poll for new messages every 2 seconds
-    const interval = setInterval(fetchMessages, 2000);
-    return () => clearInterval(interval);
+    const channel = supabase
+      .channel(`messages-${tradeOfferId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Message",
+          filter: `trade_offer_id=eq.${tradeOfferId}`,
+        },
+        (payload) => {
+          if (!ignore) {
+            const msg = payload.new as Message;
+            setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      ignore = true;
+      supabase.removeChannel(channel);
+    };
   }, [currentUserId, recipientId, tradeOfferId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -106,7 +125,7 @@ export default function ChatModal({
       }
 
       if (data.message) {
-        setMessages([...messages, data.message]);
+        setMessages((prev) => [...prev, data.message]);
       }
       setNewMessage("");
       setError("");
@@ -120,7 +139,6 @@ export default function ChatModal({
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl flex flex-col max-h-[600px] relative">
-        {/* Header */}
         <div className="border-b border-zinc-800 p-4 flex items-center justify-between bg-zinc-900/50">
           <div>
             <h2 className="text-base font-bold tracking-wider text-blue-400 uppercase">
@@ -138,7 +156,6 @@ export default function ChatModal({
           </button>
         </div>
 
-        {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-950">
           {isLoading ? (
             <div className="flex items-center justify-center h-full text-zinc-500">
@@ -181,14 +198,12 @@ export default function ChatModal({
           )}
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="px-4 py-2 bg-red-950/50 border-t border-red-800 text-xs text-red-400">
             {error}
           </div>
         )}
 
-        {/* Message Input */}
         <form
           onSubmit={handleSendMessage}
           className="border-t border-zinc-800 p-4 bg-zinc-900/50"

@@ -13,6 +13,7 @@ import { Navigation, Crosshair, X } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { supabase } from "@/lib/supabase";
 import TradeNodeMarkers from "./TradeNodeMarkers";
 import MapControls from "./MapControls";
 import HUDOverlay from "./HUDOverlay";
@@ -60,6 +61,12 @@ function MapClickHandler({
   return null;
 }
 
+const getTradeData = async () => {
+  const res = await fetch("/api/map-points");
+  if (!res.ok) throw new Error("Failed to fetch trade nodes");
+  return res.json();
+};
+
 const bannerText: Record<Exclude<Mode, "view">, string> = {
   "placing-custom": "Click the map to place a trade marker",
   "setting-location": "Click the map to set your location",
@@ -81,19 +88,26 @@ export default function BlackoutMap() {
     recipientName: string;
   } | null>(null);
 
-  const fetchGridData = async () => {
-    try {
-      const res = await fetch("/api/map-points");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed grid fetch");
-      setLocations(data);
-    } catch (err) {
-      console.error("Failed to load mesh infrastructure nodes:", err);
-    }
-  };
-
   useEffect(() => {
-    fetchGridData();
+    const channel = supabase
+      .channel("trade-offer-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "Trade_Offer" },
+        (payload) => {
+          console.log("Trade_Offer realtime payload:", payload);
+          getTradeData().then(setLocations).catch(console.error);
+        },
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          getTradeData().then(setLocations).catch(console.error);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -144,7 +158,11 @@ export default function BlackoutMap() {
     setActiveFormCoords({ lat: myLocation[0], lng: myLocation[1] });
   };
 
-  const handleMessageClick = (tradeOfferId: number, recipientId: number, recipientName: string) => {
+  const handleMessageClick = (
+    tradeOfferId: number,
+    recipientId: number,
+    recipientName: string,
+  ) => {
     setSelectedChat({ tradeOfferId, recipientId, recipientName });
   };
 
@@ -165,7 +183,10 @@ export default function BlackoutMap() {
         <FlyTo position={myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
-        <TradeNodeMarkers locations={locations} onMessageClick={handleMessageClick} />
+        <TradeNodeMarkers
+          locations={locations}
+          onMessageClick={handleMessageClick}
+        />
 
         {myLocation && (
           <Marker position={myLocation} icon={createMyLocationIcon()}>
@@ -230,7 +251,6 @@ export default function BlackoutMap() {
           onClose={() => setActiveFormCoords(null)}
           onSuccess={() => {
             setActiveFormCoords(null);
-            fetchGridData();
           }}
         />
       )}
