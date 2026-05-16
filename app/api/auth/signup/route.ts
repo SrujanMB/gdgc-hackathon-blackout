@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     // Check if user already exists
     const { data: existingUser } = await supabase
       .from("User")
-      .select("id")
+      .select("UserID")
       .eq("email", email)
       .single();
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         email,
         password_hash: password, // TODO: Hash this with bcrypt in production
       })
-      .select("userID, name, email")
+      .select("UserID, name, email")
       .single();
 
     if (error) throw error;
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       user: {
-        userID: user.userID,
+        userID: user.UserID,
         name: user.name,
         email: user.email,
       },
