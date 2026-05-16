@@ -123,9 +123,6 @@ export default function BlackoutMap() {
         {/* Lighter, free, tokenless base map */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-<<<<<<< Updated upstream
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-=======
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
         />
         <CenterUpdater center={center} />
@@ -134,56 +131,17 @@ export default function BlackoutMap() {
           center={center}
           radius={8}
           pathOptions={{ color: "#ff5722", fillColor: "#ffb4a2", fillOpacity: 0.9 }}
->>>>>>> Stashed changes
         />
       </MapContainer>
 
       {/* Floating HUD Panel */}
-      <div className="absolute top-4 left-4 bg-zinc-950/90 backdrop-blur border border-zinc-800 p-3 rounded text-xs text-zinc-400 z-[1000] space-y-1 shadow-xl">
+      {/* <div className="absolute top-4 left-4 bg-zinc-950/90 backdrop-blur border border-zinc-800 p-3 rounded text-xs text-zinc-400 z-[1000] space-y-1 shadow-xl pointer-events-none">
         <div className="flex items-center gap-1.5 text-red-500 font-bold tracking-wider">
           <ShieldAlert size={14} />
           <span>LONDON GRID MONITOR</span>
         </div>
         <p>Active Mesh Nodes: {locations.length}</p>
-
-        <div className="mt-2 space-y-1 text-[11px] text-zinc-300">
-          <button
-            onClick={handleUseMyLocation}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-xs"
-          >
-            Use my location
-          </button>
-
-          <div className="flex items-center gap-2">
-            <input
-              value={latInput}
-              onChange={(e) => setLatInput(e.target.value)}
-              className="w-24 px-2 py-1 rounded bg-zinc-900 text-white text-xs"
-              placeholder="lat"
-            />
-            <input
-              value={lngInput}
-              onChange={(e) => setLngInput(e.target.value)}
-              className="w-24 px-2 py-1 rounded bg-zinc-900 text-white text-xs"
-              placeholder="lng"
-            />
-            <button
-              onClick={handleApplyManualCoords}
-              className="bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded text-xs"
-            >
-              Set
-            </button>
-          </div>
-
-            {locationError ? (
-              <div className="text-red-400 text-[11px]">{locationError}</div>
-            ) : null}
-
-            {status ? (
-              <div className="text-green-300 text-[11px]">{status}</div>
-            ) : null}
-        </div>
-      </div>
+      </div> */}
     </div>
   );
 }
