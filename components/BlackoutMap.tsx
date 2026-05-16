@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import {
   MapContainer,
@@ -9,42 +10,39 @@ import {
   useMap,
 } from "react-leaflet";
 import {
-  Store,
-  User,
   ShieldAlert,
-  MapPin,
   Navigation,
-  Plus,
-  X,
   Crosshair,
   Locate,
+  X,
+  User,
+  MapPin,
+  Plus,
 } from "lucide-react";
 import { renderToString } from "react-dom/server";
-import { UserProfile } from "@/types";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import CreateTradeModal from "./CreateTradeModal"; // Adjust path if necessary
 
-interface RedMarker {
-  id: string;
-  lat: number;
-  lng: number;
-  placeholder: boolean;
+// --- Types ---
+interface CleanMapNode {
+  id: number;
+  latitude: number;
+  longitude: number;
+  name: string;
+  offering: Array<{ id: number; title: string; description: string | null }>;
+  seeking: Array<{ id: number; title: string; description: string | null }>;
 }
 
 type Mode = "view" | "placing-custom" | "setting-location";
 
 const LONDON_CENTER: [number, number] = [51.5074, -0.1278];
 
-const createCustomIcon = (isStore: boolean) => {
+// --- Leaflet Custom Icon Generators ---
+const createTradeIcon = () => {
   const iconHtml = renderToString(
-    <div
-      className={`p-2 rounded-full border ${
-        isStore
-          ? "bg-emerald-950 text-emerald-400 border-emerald-500"
-          : "bg-zinc-900 text-amber-400 border-amber-600"
-      }`}
-    >
-      {isStore ? <Store size={18} /> : <User size={18} />}
+    <div className="p-2 rounded-full border bg-zinc-900 text-amber-400 border-amber-600 shadow-lg animate-pulse-slow">
+      <User size={18} />
     </div>,
   );
   return L.divIcon({
@@ -55,29 +53,9 @@ const createCustomIcon = (isStore: boolean) => {
   });
 };
 
-const createRedIcon = (placeholder: boolean) => {
-  const iconHtml = renderToString(
-    <div
-      className={`p-2 rounded-full border ${
-        placeholder
-          ? "bg-red-950 text-red-300 border-dashed border-red-500"
-          : "bg-red-950 text-red-400 border-red-500"
-      }`}
-    >
-      <MapPin size={18} />
-    </div>,
-  );
-  return L.divIcon({
-    html: iconHtml,
-    className: "custom-leaflet-icon",
-    iconSize: [34, 34],
-    iconAnchor: [17, 34],
-  });
-};
-
 const createMyLocationIcon = () => {
   const iconHtml = renderToString(
-    <div className="p-2 rounded-full border bg-blue-950 text-blue-400 border-blue-500">
+    <div className="p-2 rounded-full border bg-blue-950 text-blue-400 border-blue-500 shadow-md">
       <Navigation size={18} />
     </div>,
   );
@@ -89,11 +67,11 @@ const createMyLocationIcon = () => {
   });
 };
 
-// Pans map when user location is first found
+// --- Map Utility Components ---
 function FlyTo({ position }: { position: [number, number] | null }) {
   const map = useMap();
   useEffect(() => {
-    if (position) map.setView(position, 15, { animate: false });
+    if (position) map.setView(position, 15, { animate: true });
   }, [position, map]);
   return null;
 }
@@ -107,47 +85,48 @@ function MapClickHandler({
 }) {
   useMapEvents({
     click(e) {
-      if (mode !== "view") {
-        onMapClick(e.latlng.lat, e.latlng.lng);
-      }
+      if (mode !== "view") onMapClick(e.latlng.lat, e.latlng.lng);
     },
   });
   return null;
 }
 
+// --- Main Component ---
 export default function BlackoutMap() {
-  const [locations, setLocations] = useState<UserProfile[]>([]);
+  const [locations, setLocations] = useState<CleanMapNode[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
-  const [redMarkers, setRedMarkers] = useState<RedMarker[]>([]);
   const [mode, setMode] = useState<Mode>("view");
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState("");
 
+  // Modal State
+  const [activeFormCoords, setActiveFormCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
+  // Fetch from the Next.js API
+  const fetchGridData = async () => {
+    try {
+      const res = await fetch("/api/map-points");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed grid fetch");
+      setLocations(data);
+    } catch (err) {
+      console.error("Failed to load mesh infrastructure nodes:", err);
+    }
+  };
+
   useEffect(() => {
-    fetch("/api/map-points")
-      .then((res) => res.json())
-      .then((data) => setLocations(data))
-      .catch((err) => console.error("Failed to load grid points", err));
+    fetchGridData();
   }, []);
 
+  // Initial Geolocation
   useEffect(() => {
     if (!navigator.geolocation) return;
-
-    setLocError("");
-    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setMyLocation([pos.coords.latitude, pos.coords.longitude]);
-        setLocating(false);
-      },
-      (err) => {
-        setLocating(false);
-        if (err.code === 1) {
-          setLocError(
-            "Location permission denied — allow it in browser settings",
-          );
-        }
-      },
+      (pos) => setMyLocation([pos.coords.latitude, pos.coords.longitude]),
+      () => {}, // Ignore initial errors silently
       { timeout: 10000 },
     );
   }, []);
@@ -168,8 +147,8 @@ export default function BlackoutMap() {
         setLocating(false);
         setLocError(
           err.code === 1
-            ? "Location permission denied — allow it in browser settings"
-            : "Could not get location, try again",
+            ? "Location access denied."
+            : "Could not fetch GPS parameters.",
         );
       },
       { timeout: 10000 },
@@ -179,34 +158,29 @@ export default function BlackoutMap() {
   const handleMapClick = (lat: number, lng: number) => {
     if (mode === "setting-location") {
       setMyLocation([lat, lng]);
+      setMode("view");
     } else if (mode === "placing-custom") {
-      setRedMarkers((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), lat, lng, placeholder: true },
-      ]);
+      setActiveFormCoords({ lat, lng });
+      setMode("view");
     }
-    setMode("view");
   };
 
   const addAtMyLocation = () => {
     if (!myLocation) return;
-    setRedMarkers((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        lat: myLocation[0],
-        lng: myLocation[1],
-        placeholder: true,
-      },
-    ]);
+    setActiveFormCoords({ lat: myLocation[0], lng: myLocation[1] });
   };
 
-  const removeMarker = (id: string) => {
-    setRedMarkers((prev) => prev.filter((m) => m.id !== id));
+  const deleteNode = async (id: number) => {
+    try {
+      const res = await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
+      if (res.ok) fetchGridData();
+    } catch (err) {
+      console.error("Failed node termination sequence:", err);
+    }
   };
 
   const bannerText: Record<Exclude<Mode, "view">, string> = {
-    "placing-custom": "Click the map to place a placeholder trading marker",
+    "placing-custom": "Click the map to place a trade marker",
     "setting-location": "Click the map to set your location",
   };
 
@@ -216,12 +190,10 @@ export default function BlackoutMap() {
         center={LONDON_CENTER}
         zoom={12}
         zoomControl={false}
-        zoomAnimation={false}
-        fadeAnimation={false}
         className={`w-full h-full${mode !== "view" ? " cursor-crosshair" : ""}`}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
           className="dark:invert"
         />
@@ -229,52 +201,69 @@ export default function BlackoutMap() {
         <FlyTo position={myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
-        {locations.length > 0 &&
-          locations.map((user) => (
-            <Marker
-              key={user.id}
-              position={[user.latitude, user.longitude]}
-              icon={createCustomIcon(user.is_store)}
-            >
-              <Popup>
-                <div className="p-1 min-w-[200px] font-sans text-zinc-200">
-                  <h3 className="font-bold text-sm text-zinc-900 border-b pb-1 mb-2">
-                    {user.is_store ? user.business_name : user.name}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">
-                    Node Type: {user.is_store ? "Established Hub" : "Survivor"}
-                  </p>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="text-emerald-600 font-semibold block text-[11px]">
-                        🟢 OFFERING:
-                      </span>
-                      <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
-                        {user.inventory
-                          .filter((i) => i.type === "offering")
-                          .map((i) => (
-                            <li key={i.id}>{i.title}</li>
-                          ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <span className="text-amber-600 font-semibold block text-[11px]">
-                        🔴 SEEKING:
-                      </span>
-                      <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
-                        {user.inventory
-                          .filter((i) => i.type === "seeking")
-                          .map((i) => (
-                            <li key={i.id}>{i.title}</li>
-                          ))}
-                      </ul>
-                    </div>
+        {/* --- Render Live Database Trade Nodes --- */}
+        {locations.map((node) => (
+          <Marker
+            key={node.id}
+            position={[node.latitude, node.longitude]}
+            icon={createTradeIcon()}
+          >
+            <Popup>
+              <div className="p-1 min-w-[220px] font-sans text-zinc-200">
+                <h3 className="font-bold text-sm text-zinc-900 border-b pb-1 mb-2 flex items-center gap-1">
+                  <span>👤 {node.name}</span>
+                </h3>
+
+                <div className="space-y-3 text-xs mb-3">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded p-2 text-zinc-800">
+                    <span className="text-emerald-700 font-bold block text-[10px] tracking-wider uppercase mb-0.5">
+                      🟢 HAVE (OFFERING):
+                    </span>
+                    {node.offering.map((item) => (
+                      <div key={item.id}>
+                        <p className="font-semibold text-zinc-900 text-[13px]">
+                          {item.title}
+                        </p>
+                        {item.description && (
+                          <p className="text-[11px] text-zinc-500 font-normal mt-0.5 leading-tight">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded p-2 text-zinc-800">
+                    <span className="text-amber-700 font-bold block text-[10px] tracking-wider uppercase mb-0.5">
+                      🔴 WANT (SEEKING):
+                    </span>
+                    {node.seeking.map((item) => (
+                      <div key={item.id}>
+                        <p className="font-semibold text-zinc-900 text-[13px]">
+                          {item.title}
+                        </p>
+                        {item.description && (
+                          <p className="text-[11px] text-zinc-500 font-normal mt-0.5 leading-tight">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </Popup>
-            </Marker>
-          ))}
 
+                <button
+                  onClick={() => deleteNode(node.id)}
+                  className="w-full text-center rounded bg-red-600 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-red-700 transition-colors"
+                >
+                  Terminate Offer
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* --- Render User Device Location Marker --- */}
         {myLocation && (
           <Marker position={myLocation} icon={createMyLocationIcon()}>
             <Popup>
@@ -285,109 +274,31 @@ export default function BlackoutMap() {
                 </p>
                 <button
                   onClick={() => setMyLocation(null)}
-                  className="text-xs text-red-500 mt-2 hover:underline"
+                  className="text-xs text-red-500 mt-2 hover:underline font-medium"
                 >
-                  Remove
+                  Remove Location Anchor
                 </button>
               </div>
             </Popup>
           </Marker>
         )}
-
-        {redMarkers.map((m) => (
-          <Marker
-            key={m.id}
-            position={[m.lat, m.lng]}
-            icon={createRedIcon(m.placeholder)}
-          >
-            <Popup>
-              <div className="p-2 font-sans text-zinc-900 min-w-[220px] space-y-3">
-                {m.placeholder ? (
-                  <>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-violet-300/70 flex items-center justify-center text-violet-700">
-                          <span className="text-sm font-bold">N</span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-900">
-                            Name
-                          </p>
-                          <p className="text-[11px] text-zinc-500">
-                            Trading Away
-                          </p>
-                        </div>
-                      </div>
-                      <div className="rounded border border-zinc-300/60 bg-white/90 p-2 text-xs text-zinc-600 min-h-[64px]">
-                        Trading Away
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
-                        Wants to trade
-                      </label>
-                      <select className="w-full rounded border border-zinc-300 bg-white/90 px-2 py-1 text-sm text-zinc-800">
-                        <option>Wants to trade</option>
-                        <option>Food</option>
-                        <option>Medicine</option>
-                        <option>Tools</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
-                        Message name (optional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Message Name"
-                        className="w-full rounded border border-zinc-300 bg-white/90 px-2 py-1 text-sm text-zinc-800"
-                      />
-                    </div>
-                    <button
-                      onClick={() => removeMarker(m.id)}
-                      className="w-full rounded bg-red-500 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-white hover:bg-red-600"
-                    >
-                      Remove placeholder
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-bold text-sm">Red Marker</p>
-                    <p className="text-xs text-zinc-500">
-                      {m.lat.toFixed(4)}, {m.lng.toFixed(4)}
-                    </p>
-                    <button
-                      onClick={() => removeMarker(m.id)}
-                      className="text-xs text-red-500 mt-2 hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
       </MapContainer>
 
-      {/* HUD */}
+      {/* --- HUD Interface Overlays --- */}
       <div className="absolute top-4 left-4 bg-zinc-950/90 backdrop-blur border border-zinc-800 p-3 rounded text-xs text-zinc-400 z-[1000] space-y-1 shadow-xl pointer-events-none">
         <div className="flex items-center gap-1.5 text-red-500 font-bold tracking-wider">
           <ShieldAlert size={14} />
-          <span>LONDON GRID MONITOR</span>
+          <span>BARTER NETWORK MONITOR</span>
         </div>
-        <p>Active Mesh Nodes: {locations.length}</p>
+        <p>Active Trade Nodes: {locations.length}</p>
         {myLocation && (
           <p className="text-blue-400">
-            Your pos: {myLocation[0].toFixed(3)}, {myLocation[1].toFixed(3)}
+            Coordinates: {myLocation[0].toFixed(3)}, {myLocation[1].toFixed(3)}
           </p>
-        )}
-        {redMarkers.length > 0 && (
-          <p className="text-red-400">Red markers: {redMarkers.length}</p>
         )}
       </div>
 
-      {/* Mode banner */}
+      {/* Mode Banner */}
       {mode !== "view" && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-zinc-950/95 border border-zinc-700 px-4 py-2 rounded text-sm text-zinc-200 flex items-center gap-2 shadow-xl">
           <Crosshair size={14} className="text-red-400" />
@@ -401,7 +312,7 @@ export default function BlackoutMap() {
         </div>
       )}
 
-      {/* Location error */}
+      {/* Error Modals */}
       {locError && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1001] bg-red-950/95 border border-red-700 px-4 py-2 rounded text-xs text-red-300 flex items-center gap-2 shadow-xl max-w-xs text-center">
           <span>{locError}</span>
@@ -414,16 +325,15 @@ export default function BlackoutMap() {
         </div>
       )}
 
-      {/* Controls */}
+      {/* Interface Panel Buttons */}
       <div className="absolute bottom-6 right-4 z-[1000] flex flex-col gap-2">
-        {/* Location buttons */}
         <button
           onClick={handleLocateMe}
           disabled={locating}
           className="flex items-center gap-2 px-3 py-2 rounded text-xs font-medium border bg-zinc-900/90 border-zinc-700 text-zinc-300 hover:border-blue-500 hover:text-blue-400 shadow-lg transition-all disabled:opacity-50"
         >
           <Locate size={13} />
-          {locating ? "Locating..." : "Find My Location"}
+          {locating ? "Scanning Coordinates..." : "Locate Me"}
         </button>
         <button
           onClick={() => setMode("setting-location")}
@@ -434,17 +344,16 @@ export default function BlackoutMap() {
           }`}
         >
           <Navigation size={13} />
-          Set Location on Map
+          Pin Base Location
         </button>
 
-        {/* Marker buttons */}
         {myLocation && (
           <button
             onClick={addAtMyLocation}
             className="flex items-center gap-2 px-3 py-2 rounded text-xs font-medium border bg-zinc-900/90 border-red-800 text-red-400 hover:bg-red-950/40 shadow-lg transition-all"
           >
             <Plus size={13} />
-            Add Marker at My Location
+            Drop Trade Offer Here
           </button>
         )}
         <button
@@ -456,9 +365,22 @@ export default function BlackoutMap() {
           }`}
         >
           <Crosshair size={13} />
-          Add Custom Marker
+          Drop Custom Trade Node
         </button>
       </div>
+
+      {/* --- Trade Creation Modal Overlay --- */}
+      {activeFormCoords && (
+        <CreateTradeModal
+          lat={activeFormCoords.lat}
+          lng={activeFormCoords.lng}
+          onClose={() => setActiveFormCoords(null)}
+          onSuccess={() => {
+            setActiveFormCoords(null);
+            fetchGridData(); // Instantly paints the new marker onto Leaflet
+          }}
+        />
+      )}
     </div>
   );
 }
