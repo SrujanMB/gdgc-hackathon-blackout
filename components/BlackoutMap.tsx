@@ -38,7 +38,7 @@ interface CleanMapNode {
 
 type Mode = "view" | "placing-custom" | "setting-location";
 
-const LONDON_CENTER: [number, number] = [51.5074, -0.1278];
+const AUCKLAND_CENTER: [number, number] = [-36.8485, 174.7645];
 
 // --- Leaflet Custom Icon Generators ---
 const createTradeIcon = () => {
@@ -133,7 +133,7 @@ export default function BlackoutMap() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => setMyLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => {}, // Ignore initial errors silently
+      () => { }, // Ignore initial errors silently
       { timeout: 10000 },
     );
   }, []);
@@ -194,7 +194,7 @@ export default function BlackoutMap() {
   return (
     <div className="w-full h-full relative">
       <MapContainer
-        center={LONDON_CENTER}
+        center={AUCKLAND_CENTER}
         zoom={12}
         zoomControl={false}
         className={`w-full h-full${mode !== "view" ? " cursor-crosshair" : ""}`}
@@ -351,11 +351,10 @@ export default function BlackoutMap() {
         </button>
         <button
           onClick={() => setMode("setting-location")}
-          className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium border shadow-lg transition-all ${
-            mode === "setting-location"
-              ? "bg-blue-900/50 border-blue-500 text-blue-300"
-              : "bg-zinc-900/90 border-zinc-700 text-zinc-300 hover:border-blue-500 hover:text-blue-400"
-          }`}
+          className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium border shadow-lg transition-all ${mode === "setting-location"
+            ? "bg-blue-900/50 border-blue-500 text-blue-300"
+            : "bg-zinc-900/90 border-zinc-700 text-zinc-300 hover:border-blue-500 hover:text-blue-400"
+            }`}
         >
           <Navigation size={13} />
           Pin Base Location
@@ -372,11 +371,10 @@ export default function BlackoutMap() {
         )}
         <button
           onClick={() => setMode("placing-custom")}
-          className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium border shadow-lg transition-all ${
-            mode === "placing-custom"
-              ? "bg-red-900/50 border-red-500 text-red-300"
-              : "bg-zinc-900/90 border-red-800 text-red-400 hover:bg-red-950/40"
-          }`}
+          className={`flex items-center gap-2 px-3 py-2 rounded text-xs font-medium border shadow-lg transition-all ${mode === "placing-custom"
+            ? "bg-red-900/50 border-red-500 text-red-300"
+            : "bg-zinc-900/90 border-red-800 text-red-400 hover:bg-red-950/40"
+            }`}
         >
           <Crosshair size={13} />
           Drop Custom Trade Node
