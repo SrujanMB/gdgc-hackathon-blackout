@@ -89,6 +89,9 @@ export default function BlackoutMap() {
     tradeOfferId: number;
     recipientId: number;
     recipientName: string;
+    tradeCreatorId: number;
+    offering: Array<{ id: number; title: string; description: string | null }>;
+    seeking: Array<{ id: number; title: string; description: string | null }>;
   } | null>(null);
   // Persisted list of everyone the current user has opened a chat with.
   // Loaded from localStorage on mount (safe here because BlackoutMap is ssr:false).
@@ -283,7 +286,15 @@ export default function BlackoutMap() {
     recipientId: number,
     recipientName: string,
   ) => {
-    setSelectedChat({ tradeOfferId, recipientId, recipientName });
+    const node = locationsRef.current.find((loc) => loc.id === tradeOfferId);
+    setSelectedChat({
+      tradeOfferId,
+      recipientId,
+      recipientName,
+      tradeCreatorId: node?.userId ?? recipientId,
+      offering: node?.offering ?? [],
+      seeking: node?.seeking ?? [],
+    });
     // Add to conversation history if this pair hasn't been chatted before
     setConversations((prev) => {
       const exists = prev.some(
@@ -392,6 +403,9 @@ export default function BlackoutMap() {
           tradeOfferId={selectedChat.tradeOfferId}
           recipientId={selectedChat.recipientId}
           recipientName={selectedChat.recipientName}
+          tradeCreatorId={selectedChat.tradeCreatorId}
+          offering={selectedChat.offering}
+          seeking={selectedChat.seeking}
           onClose={() => setSelectedChat(null)}
           onMessageSent={(content) =>
             updateLastMessage(selectedChat.tradeOfferId, selectedChat.recipientId, content)
