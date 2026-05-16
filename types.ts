@@ -171,19 +171,19 @@ export type Database = {
       }
       User: {
         Row: {
-          userID: number
+          UserID: number
           name: string | null
           email: string | null
           password_hash: string | null
         }
         Insert: {
-          userID?: number
+          UserID?: number
           name?: string | null
           email?: string | null
           password_hash?: string | null
         }
         Update: {
-          userID?: number
+          UserID?: number
           name?: string | null
           email?: string | null
           password_hash?: string | null

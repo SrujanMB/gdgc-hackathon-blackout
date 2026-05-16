@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Login() {
   const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -51,17 +53,12 @@ export default function Login() {
         return;
       }
 
-      // Store user info in localStorage
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          userID: data.user.userID,
-          name: data.user.name,
-          email: data.user.email,
-        }),
-      );
+      login({
+        userID: data.user.userID,
+        name: data.user.name,
+        email: data.user.email,
+      });
 
-      // Redirect to map
       router.push("/");
     } catch (err: any) {
       setError(err.message || "An error occurred");

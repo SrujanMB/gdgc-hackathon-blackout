@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     // Find user by email
     const { data: user, error } = await supabase
       .from("User")
-      .select("userID, name, email, password_hash")
+      .select("UserID, name, email, password_hash")
       .eq("email", email)
       .single();
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       user: {
-        userID: user.userID,
+        userID: user.UserID,
         name: user.name,
         email: user.email,
       },
