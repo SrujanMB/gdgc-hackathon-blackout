@@ -86,7 +86,8 @@ export default function MessagesHub({ conversations, onOpenChat }: MessagesHubPr
       {/* ── Floating popup box anchored above the pill ───────────────────── */}
       {isOpen && (
         <div
-          className="fixed bottom-20 left-4 z-[1002] w-[420px] h-[580px] flex flex-col bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl popup-enter overflow-hidden"
+          className="fixed bottom-20 left-4 z-[1002] w-[420px] flex flex-col bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl popup-enter overflow-hidden"
+          style={{ height: "clamp(360px, 60vh, 680px)" }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
