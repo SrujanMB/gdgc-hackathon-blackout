@@ -143,10 +143,20 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const tradeId = parseInt(id);
+
+    // Remove messages tied to this trade first to satisfy the FK constraint
+    const { error: msgError } = await supabase
+      .from("Message")
+      .delete()
+      .eq("trade_offer_id", tradeId);
+
+    if (msgError) throw msgError;
+
     const { error } = await supabase
       .from("Trade_Offer")
       .delete()
-      .eq("id", parseInt(id));
+      .eq("id", tradeId);
 
     if (error) throw error;
 
