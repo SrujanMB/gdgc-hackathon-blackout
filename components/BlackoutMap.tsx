@@ -18,11 +18,13 @@ import {
   User,
   MapPin,
   Plus,
+  MessageCircle,
 } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CreateTradeModal from "./CreateTradeModal"; // Adjust path if necessary
+import ChatModal from "./ChatModal"; // Chat Modal for messaging
 
 // --- Types ---
 interface CleanMapNode {
@@ -103,6 +105,11 @@ export default function BlackoutMap() {
   const [activeFormCoords, setActiveFormCoords] = useState<{
     lat: number;
     lng: number;
+  } | null>(null);
+  const [selectedChat, setSelectedChat] = useState<{
+    tradeOfferId: number;
+    recipientId: number;
+    recipientName: string;
   } | null>(null);
 
   // Fetch from the Next.js API
@@ -253,10 +260,17 @@ export default function BlackoutMap() {
                 </div>
 
                 <button
-                  onClick={() => deleteNode(node.id)}
-                  className="w-full text-center rounded bg-red-600 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-red-700 transition-colors"
+                  onClick={() =>
+                    setSelectedChat({
+                      tradeOfferId: node.id,
+                      recipientId: node.id,
+                      recipientName: node.name,
+                    })
+                  }
+                  className="w-full text-center rounded bg-blue-600 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
                 >
-                  Terminate Offer
+                  <MessageCircle size={12} />
+                  Message
                 </button>
               </div>
             </Popup>
@@ -379,6 +393,16 @@ export default function BlackoutMap() {
             setActiveFormCoords(null);
             fetchGridData(); // Instantly paints the new marker onto Leaflet
           }}
+        />
+      )}
+
+      {/* --- Chat Modal Overlay --- */}
+      {selectedChat && (
+        <ChatModal
+          tradeOfferId={selectedChat.tradeOfferId}
+          recipientId={selectedChat.recipientId}
+          recipientName={selectedChat.recipientName}
+          onClose={() => setSelectedChat(null)}
         />
       )}
     </div>

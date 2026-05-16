@@ -184,6 +184,55 @@ export type Database = {
         }
         Relationships: []
       }
+      Message: {
+        Row: {
+          id: number
+          sender_id: number | null
+          receiver_id: number | null
+          content: string
+          created_at: string
+          trade_offer_id: number | null
+        }
+        Insert: {
+          id?: number
+          sender_id?: number | null
+          receiver_id?: number | null
+          content: string
+          created_at?: string
+          trade_offer_id?: number | null
+        }
+        Update: {
+          id?: number
+          sender_id?: number | null
+          receiver_id?: number | null
+          content?: string
+          created_at?: string
+          trade_offer_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Message_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Message_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Message_trade_offer_id_fkey"
+            columns: ["trade_offer_id"]
+            isOneToOne: false
+            referencedRelation: "Trade_Offer"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       geography_columns: {
