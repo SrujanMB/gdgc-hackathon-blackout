@@ -25,6 +25,7 @@ interface ChatModalProps {
   recipientId: number;
   recipientName: string;
   tradeCreatorId: number;  // UserID of whoever created the trade node
+  tradeStatus: string;     // current DB status — "completed" restores the banner
   offering: TradeItem[];
   seeking: TradeItem[];
   onClose: () => void;
@@ -49,6 +50,12 @@ function TradeSection({
   const [title, setTitle] = useState(item?.title ?? "");
   const [desc, setDesc] = useState(item?.description ?? "");
   const [saving, setSaving] = useState(false);
+
+  // Keep local edit state in sync when the parent updates the item after a save
+  useEffect(() => {
+    setTitle(item?.title ?? "");
+    setDesc(item?.description ?? "");
+  }, [item]);
 
   const borderClass = colour === "emerald"
     ? "border-emerald-800/50 bg-emerald-950/40"
@@ -116,9 +123,9 @@ function TradeSection({
       ) : item ? (
         <>
           <p className="text-sm font-semibold text-white">{item.title}</p>
-          {item.description && (
+          {item.description?.trim() ? (
             <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{item.description}</p>
-          )}
+          ) : null}
         </>
       ) : (
         <p className="text-xs text-zinc-500 italic">Nothing listed</p>
@@ -134,6 +141,7 @@ export default function ChatModal({
   recipientId,
   recipientName,
   tradeCreatorId,
+  tradeStatus,
   offering,
   seeking,
   onClose,
@@ -154,6 +162,7 @@ export default function ChatModal({
   // Local copies so edits are reflected immediately in the UI
   const [offeredItem, setOfferedItem] = useState<TradeItem | null>(offering[0] ?? null);
   const [soughtItem, setSoughtItem] = useState<TradeItem | null>(seeking[0] ?? null);
+  const [isCompleted, setIsCompleted] = useState(tradeStatus === "completed");
 
   const scrollToBottom = () =>
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -258,20 +267,16 @@ export default function ChatModal({
         body: JSON.stringify({ tradeId: tradeOfferId, status: "completed" }),
       });
       await sendQuickMessage("Trade accepted! ✓ Status set to completed.");
-      onClose();
+      // Stay open but replace buttons with a completed banner
+      setIsCompleted(true);
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleDecline = async () => {
-    setIsSending(true);
-    try {
-      await sendQuickMessage("Trade declined.");
-      onClose();
-    } finally {
-      setIsSending(false);
-    }
+  // Decline = cancel immediately, no lingering chat
+  const handleDecline = () => {
+    onClose();
   };
 
   return (
@@ -397,22 +402,31 @@ export default function ChatModal({
             )}
           </div>
 
-          {/* Decline / Accept */}
-          <div className="px-4 pb-5 pt-3 flex gap-3 shrink-0 border-t border-zinc-800">
-            <button
-              disabled={isSending}
-              onClick={handleDecline}
-              className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-sm tracking-wide transition-colors disabled:opacity-50"
-            >
-              Decline
-            </button>
-            <button
-              disabled={isSending}
-              onClick={handleAccept}
-              className="flex-1 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-wide transition-colors disabled:opacity-50"
-            >
-              Accept
-            </button>
+          {/* Decline / Accept — replaced by completed banner after accepting */}
+          <div className="px-4 pb-5 pt-3 shrink-0 border-t border-zinc-800">
+            {isCompleted ? (
+              <div className="w-full py-3 rounded-lg bg-green-900/40 border border-green-700 flex items-center justify-center gap-2">
+                <Check size={16} className="text-green-400" />
+                <span className="text-sm font-bold text-green-400 tracking-wide">Trade Completed</span>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  disabled={isSending}
+                  onClick={handleDecline}
+                  className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-sm tracking-wide transition-colors disabled:opacity-50"
+                >
+                  Decline
+                </button>
+                <button
+                  disabled={isSending}
+                  onClick={handleAccept}
+                  className="flex-1 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-wide transition-colors disabled:opacity-50"
+                >
+                  Accept
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

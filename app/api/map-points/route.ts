@@ -19,6 +19,7 @@ export async function GET() {
     .select(`
       id,
       location,
+      status,
       UserID,
       User ( name ),
       offering_item:Item!Trade_Offer_offering_fkey ( id, title, description ),
@@ -54,6 +55,7 @@ export async function GET() {
     return {
       id: offer.id,
       userId: offer.UserID,
+      status: offer.status ?? "open",
       latitude,
       longitude,
       name: offer.User?.name || "Unknown Survivor",
