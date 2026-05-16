@@ -54,8 +54,6 @@ export default function HomePage() {
       lat: result.latitude,
       lng: result.longitude,
     });
-    // Could emit event to map to center/highlight this location
-    console.log("Selected location:", result);
   };
 
   return (
@@ -88,7 +86,7 @@ export default function HomePage() {
       <LocationFilter onLocationSelect={handleLocationSelect} />
 
       <div className="h-screen w-full">
-        <BlackoutMap />
+        <BlackoutMap searchLocation={selectedLocation} />
       </div>
     </main>
   );

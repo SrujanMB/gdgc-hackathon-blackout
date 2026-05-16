@@ -73,7 +73,16 @@ const bannerText: Record<Exclude<Mode, "view">, string> = {
   "setting-location": "Click the map to set your location",
 };
 
-export default function BlackoutMap() {
+export interface SearchLocationTarget {
+  lat: number;
+  lng: number;
+}
+
+interface BlackoutMapProps {
+  searchLocation?: SearchLocationTarget | null;
+}
+
+export default function BlackoutMap({ searchLocation }: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -116,7 +125,7 @@ export default function BlackoutMap() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => setMyLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
+      () => { },
       { timeout: 10000 },
     );
   }, []);
@@ -190,7 +199,7 @@ export default function BlackoutMap() {
           className="dark:invert"
         />
 
-        <FlyTo position={myLocation} />
+        <FlyTo position={searchLocation ? [searchLocation.lat, searchLocation.lng] : myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
         <TradeNodeMarkers
