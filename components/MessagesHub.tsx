@@ -12,6 +12,8 @@ export interface Conversation {
 interface MessagesHubProps {
   conversations: Conversation[];
   onOpenChat: (tradeOfferId: number, recipientId: number, recipientName: string) => void;
+  unreadCount?: number;
+  onOpen?: () => void;
 }
 
 // Deterministic avatar colour from name — same name always gets same colour
@@ -31,7 +33,7 @@ function avatarColour(name: string) {
   return AVATAR_COLOURS[n % AVATAR_COLOURS.length];
 }
 
-export default function MessagesHub({ conversations, onOpenChat }: MessagesHubProps) {
+export default function MessagesHub({ conversations, onOpenChat, unreadCount = 0, onOpen }: MessagesHubProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -47,7 +49,7 @@ export default function MessagesHub({ conversations, onOpenChat }: MessagesHubPr
   // Newest conversation first in the list
   const sorted = [...filtered].reverse();
 
-  const open = () => setIsOpen(true);
+  const open = () => { setIsOpen(true); onOpen?.(); };
   const close = () => { setIsOpen(false); setSearch(""); };
 
   return (
@@ -58,6 +60,12 @@ export default function MessagesHub({ conversations, onOpenChat }: MessagesHubPr
           onClick={open}
           className="fixed bottom-6 left-4 z-[1001] flex items-center gap-2.5 px-4 py-2.5 bg-zinc-900 border border-zinc-700 rounded-full shadow-xl hover:bg-zinc-800 transition-colors pill-enter"
         >
+          {/* Unread badge sits on top-right of the pill */}
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
           <Send size={15} className="text-zinc-300 shrink-0" />
           <span className="text-sm font-semibold text-white">Messages</span>
 

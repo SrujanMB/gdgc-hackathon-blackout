@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -100,6 +100,11 @@ export default function BlackoutMap() {
       return [];
     }
   });
+  // Tracks messages that arrived while the MessagesHub popup was closed
+  const [unreadCount, setUnreadCount] = useState(0);
+  // Stable ref so the realtime callback always reads the latest locations
+  // without needing to be re-subscribed every time locations changes
+  const locationsRef = useRef(locations);
 
   useEffect(() => {
     const channel = supabase
@@ -122,6 +127,77 @@ export default function BlackoutMap() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Keep the ref current whenever locations updates
+  useEffect(() => {
+    locationsRef.current = locations;
+  }, [locations]);
+
+  // Listen for messages sent TO the current user by anyone.
+  // When one arrives we add the sender to conversations (so it appears in the
+  // MessagesHub list) and bump the unread badge on the pill.
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`incoming-messages-user-${user.userID}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Message",
+          filter: `receiver_id=eq.${user.userID}`,
+        },
+        (payload) => {
+          const msg = payload.new as {
+            id: number;
+            sender_id: number | null;
+            receiver_id: number | null;
+            trade_offer_id: number | null;
+            content: string;
+          };
+          if (!msg.sender_id || !msg.trade_offer_id) return;
+
+          // Try to find the sender's name from any visible trade node they own
+          const senderNode = locationsRef.current.find(
+            (loc) => loc.userId === msg.sender_id,
+          );
+          const senderName = senderNode?.name ?? `Trader #${msg.sender_id}`;
+
+          // Add to conversation list if this is a brand-new conversation
+          setConversations((prev) => {
+            const exists = prev.some(
+              (c) =>
+                c.tradeOfferId === msg.trade_offer_id &&
+                c.recipientId === msg.sender_id,
+            );
+            if (exists) return prev;
+            const updated = [
+              ...prev,
+              {
+                tradeOfferId: msg.trade_offer_id!,
+                recipientId: msg.sender_id!,
+                recipientName: senderName,
+              },
+            ];
+            localStorage.setItem(
+              "barter-conversations",
+              JSON.stringify(updated),
+            );
+            return updated;
+          });
+
+          // Bump the unread badge so the user notices the new message
+          setUnreadCount((n) => n + 1);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -300,6 +376,8 @@ export default function BlackoutMap() {
       <MessagesHub
         conversations={conversations}
         onOpenChat={handleMessageClick}
+        unreadCount={unreadCount}
+        onOpen={() => setUnreadCount(0)}
       />
     </div>
   );
