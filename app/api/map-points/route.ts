@@ -21,7 +21,7 @@ export async function GET() {
       location,
       UserID,
       User ( name ),
-      offering_item:Item!Trade_Offer_offering_fkey ( id, title, description ),
+      offering_item:Item!Trade_Offer_offering_fkey ( id, title, description, image_url ),
       wanting_item:Item!Trade_Offer_wanting_fkey ( id, title, description )
     `);
 
@@ -70,27 +70,80 @@ export async function GET() {
 // ==========================================
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    // Removed userId from being strictly required here for the Trade_Offer table
-    const { lat, lng, haveTitle, haveDesc, wantTitle, wantDesc, userId } = body;
+    const contentType = request.headers.get("content-type") || "";
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let haveTitle = "";
+    let haveDesc = "";
+    let wantTitle = "";
+    let wantDesc = "";
+    let userId: number | null = null;
+    let itemImage: File | null = null;
 
-    console.log('Received coordinates:', { lat, lng, haveTitle, wantTitle });
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      lat = Number(formData.get("lat"));
+      lng = Number(formData.get("lng"));
+      haveTitle = String(formData.get("haveTitle") ?? "");
+      haveDesc = String(formData.get("haveDesc") ?? "");
+      wantTitle = String(formData.get("wantTitle") ?? "");
+      wantDesc = String(formData.get("wantDesc") ?? "");
+      const rawUserId = formData.get("userId");
+      userId = rawUserId ? Number(rawUserId) : null;
+      const fileCandidate = formData.get("itemImage");
+      itemImage = fileCandidate instanceof File ? fileCandidate : null;
+    } else {
+      const body = await request.json();
+      // Removed userId from being strictly required here for the Trade_Offer table
+      const { lat: bodyLat, lng: bodyLng, haveTitle: bodyHaveTitle, haveDesc: bodyHaveDesc, wantTitle: bodyWantTitle, wantDesc: bodyWantDesc, userId: bodyUserId } = body;
+      lat = Number(bodyLat);
+      lng = Number(bodyLng);
+      haveTitle = bodyHaveTitle;
+      haveDesc = bodyHaveDesc;
+      wantTitle = bodyWantTitle;
+      wantDesc = bodyWantDesc;
+      userId = bodyUserId ?? null;
+    }
 
-    if (!haveTitle || !wantTitle || !lat || !lng) {
+    console.log("Received coordinates:", { lat, lng, haveTitle, wantTitle });
+
+    if (!haveTitle || !wantTitle || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
       );
     }
 
+    let imageUrl: string | null = null;
+    if (itemImage && itemImage.size > 0) {
+      const extension = itemImage.name.split(".").pop() || "jpg";
+      const fileName = `item-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Item_Images")
+        .upload(fileName, itemImage, { cacheControl: "3600", upsert: false });
+
+      if (uploadError) {
+        console.error("Supabase storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from("Item_Images")
+        .getPublicUrl(fileName);
+      imageUrl = publicData?.publicUrl ?? null;
+    }
+
     // A. Insert Offered Asset (Item table does seem to have an owner column based on your types)
+    const offerPayload: any = {
+      title: haveTitle,
+      description: haveDesc,
+      UserID: userId,
+      image_url: imageUrl,
+    };
+
     const { data: offerItem, error: offerErr } = await supabase
       .from("Item")
-      .insert({
-        title: haveTitle,
-        description: haveDesc,
-        UserID: userId,
-      })
+      .insert(offerPayload as any)
       .select("id")
       .single();
 
