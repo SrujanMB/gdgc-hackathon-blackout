@@ -90,6 +90,7 @@ export default function BlackoutMap() {
     recipientId: number;
     recipientName: string;
     tradeCreatorId: number;
+    tradeStatus: string;
     offering: Array<{ id: number; title: string; description: string | null }>;
     seeking: Array<{ id: number; title: string; description: string | null }>;
   } | null>(null);
@@ -292,6 +293,7 @@ export default function BlackoutMap() {
       recipientId,
       recipientName,
       tradeCreatorId: node?.userId ?? recipientId,
+      tradeStatus: node?.status ?? "open",
       offering: node?.offering ?? [],
       seeking: node?.seeking ?? [],
     });
@@ -404,6 +406,7 @@ export default function BlackoutMap() {
           recipientId={selectedChat.recipientId}
           recipientName={selectedChat.recipientName}
           tradeCreatorId={selectedChat.tradeCreatorId}
+          tradeStatus={selectedChat.tradeStatus}
           offering={selectedChat.offering}
           seeking={selectedChat.seeking}
           onClose={() => setSelectedChat(null)}
