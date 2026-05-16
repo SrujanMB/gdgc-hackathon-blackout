@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import dynamic from "next/dynamic";
 import React from "react";
+import LocationFilter from "@/components/LocationFilter";
 
 const BlackoutMap = dynamic(() => import("@/components/BlackoutMap"), {
   ssr: false,
@@ -19,6 +20,10 @@ export default function HomePage() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [selectedLocation, setSelectedLocation] = React.useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -41,6 +46,16 @@ export default function HomePage() {
   const handleLogout = async () => {
     await logout();
     router.push("/login");
+  };
+
+  const handleLocationSelect = (result: any) => {
+    // User selected a location from the dropdown
+    setSelectedLocation({
+      lat: result.latitude,
+      lng: result.longitude,
+    });
+    // Could emit event to map to center/highlight this location
+    console.log("Selected location:", result);
   };
 
   return (
@@ -68,6 +83,9 @@ export default function HomePage() {
           className="w-64 px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-400 focus:outline-none focus:border-red-500"
         />
       </div>
+
+      {/* Location Filter Panel */}
+      <LocationFilter onLocationSelect={handleLocationSelect} />
 
       <div className="h-screen w-full">
         <BlackoutMap />
