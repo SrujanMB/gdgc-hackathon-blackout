@@ -13,8 +13,10 @@ const DEMO_USER_ID = 9999; // Temporary user ID for demo purposes
 // 1. GET: Fetch & Parse Map Points
 // ==========================================
 export async function GET() {
-  // Removed `user_id` from this select string
-  const { data: offers, error } = await supabase.from("Trade_Offer").select(`
+  // Fetch raw data - location will be in EWKB binary hex format
+  const { data: offers, error } = await supabase
+    .from("Trade_Offer")
+    .select(`
       id,
       location,
       User ( name ),
@@ -27,12 +29,37 @@ export async function GET() {
   }
 
   const parsedPoints = (offers || []).map((offer: any) => {
-    const coordinates = offer.location?.coordinates || [0, 0];
+    let latitude = 0;
+    let longitude = 0;
+
+    // Handle EWKB binary format (hex string from Supabase)
+    if (offer.location) {
+      if (typeof offer.location === "string" && /^[0-9a-f]+$/i.test(offer.location)) {
+        // EWKB hex format
+        const coords = convertEWKBtoCoords(offer.location);
+        if (coords) {
+          [longitude, latitude] = coords;
+        }
+      } else if (Array.isArray(offer.location)) {
+        // Array format [lng, lat]
+        [longitude, latitude] = offer.location;
+      } else if (typeof offer.location === "object" && offer.location.coordinates) {
+        // GeoJSON format { type: "Point", coordinates: [lng, lat] }
+        [longitude, latitude] = offer.location.coordinates;
+      } else if (typeof offer.location === "string" && offer.location.startsWith("POINT")) {
+        // WKT string format "POINT(lng lat)"
+        const match = offer.location.match(/POINT\(([^ ]+) ([^ ]+)\)/);
+        if (match) {
+          longitude = parseFloat(match[1]);
+          latitude = parseFloat(match[2]);
+        }
+      }
+    }
 
     return {
       id: offer.id,
-      latitude: coordinates[1],
-      longitude: coordinates[0],
+      latitude,
+      longitude,
       name: offer.User?.name || "Unknown Survivor",
       offering: offer.offering_item ? [offer.offering_item] : [],
       seeking: offer.wanting_item ? [offer.wanting_item] : [],
@@ -50,6 +77,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     // Removed userId from being strictly required here for the Trade_Offer table
     const { lat, lng, haveTitle, haveDesc, wantTitle, wantDesc, userId } = body;
+
+    console.log('Received coordinates:', { lat, lng, haveTitle, wantTitle });
 
     if (!haveTitle || !wantTitle || !lat || !lng) {
       return NextResponse.json(
@@ -80,22 +109,24 @@ export async function POST(request: Request) {
 
     if (wantErr) throw wantErr;
 
-    // C. Insert Complete Trade Offer Entry
-    const postGisPoint = `POINT(${lng} ${lat})`;
+    if (wantErr) throw wantErr;
 
-    // Removed user_id from this insert payload entirely
+    // C. Insert Complete Trade Offer Entry using a standard WKT string for GEOMETRY
     const { data: tradeOffer, error: tradeErr } = await supabase
       .from("Trade_Offer")
       .insert({
-        location: postGisPoint,
+        location: `SRID=4326;POINT(${lng} ${lat})`, // Standard WKT for geometry
         offering: offerItem.id,
         wanting: wantItem.id,
-        UserID: DEMO_USER_ID
+        UserID: DEMO_USER_ID,
       })
       .select("id")
       .single();
 
-    if (tradeErr) throw tradeErr;
+    if (tradeErr) {
+      console.error("Supabase insert error:", tradeErr);
+      throw tradeErr;
+    }
 
     return NextResponse.json({ success: true, tradeId: tradeOffer.id });
   } catch (error: any) {
