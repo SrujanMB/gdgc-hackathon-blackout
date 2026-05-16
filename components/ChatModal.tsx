@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 interface Message {
   id: number;
@@ -34,8 +35,7 @@ export default function ChatModal({
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Use authenticated user ID
-  const currentUserId = user?.userID || 1;
+  const currentUserId = user?.userID ?? null;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,6 +54,7 @@ export default function ChatModal({
           `/api/messages?senderId=${currentUserId}&receiverId=${recipientId}&tradeOfferId=${tradeOfferId}`,
         );
         const data = await res.json();
+
 
         if (!res.ok) {
           setError(data.error || "Failed to load messages");
@@ -77,10 +78,33 @@ export default function ChatModal({
     };
 
     fetchMessages();
+  }, [currentUserId, recipientId, tradeOfferId]);
 
-    // Poll for new messages every 2 seconds
-    const interval = setInterval(fetchMessages, 2000);
-    return () => clearInterval(interval);
+  // Subscribe to new messages via Supabase Realtime (WebSocket)
+  useEffect(() => {
+    const channel = supabase
+      .channel(`chat:${[currentUserId, recipientId].sort().join("-")}:${tradeOfferId ?? "all"}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "Message" },
+        (payload) => {
+          const msg = payload.new as Message;
+          const isRelevant =
+            (msg.sender_id === currentUserId && msg.receiver_id === recipientId) ||
+            (msg.sender_id === recipientId && msg.receiver_id === currentUserId);
+          if (!isRelevant) return;
+          if (tradeOfferId && msg.trade_offer_id !== tradeOfferId) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUserId, recipientId, tradeOfferId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -106,9 +130,7 @@ export default function ChatModal({
         throw new Error(data.error || "Failed to send message");
       }
 
-      if (data.message) {
-        setMessages([...messages, data.message]);
-      }
+      // Realtime subscription will deliver the new message
       setNewMessage("");
       setError("");
     } catch (err: any) {

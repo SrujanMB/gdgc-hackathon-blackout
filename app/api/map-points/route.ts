@@ -14,6 +14,7 @@ export async function GET() {
   // Removed `user_id` from this select string
   const { data: offers, error } = await supabase.from("Trade_Offer").select(`
       id,
+      UserID,
       location,
       User ( name ),
       offering_item:Item!Trade_Offer_offering_fkey ( id, title, description ),
@@ -29,6 +30,7 @@ export async function GET() {
 
     return {
       id: offer.id,
+      userId: offer.UserID,
       latitude: coordinates[1],
       longitude: coordinates[0],
       name: offer.User?.name || "Unknown Survivor",
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
       .insert({
         title: haveTitle,
         description: haveDesc,
-        owner: userId || null,
+        UserID: userId || null,
       })
       .select("id")
       .single();
@@ -88,6 +90,7 @@ export async function POST(request: Request) {
         location: postGisPoint,
         offering: offerItem.id,
         wanting: wantItem.id,
+        UserID: userId || null,
       })
       .select("id")
       .single();
