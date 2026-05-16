@@ -7,6 +7,8 @@ const supabase = createClient<Database>(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+const DEMO_USER_ID = 9999; // Temporary user ID for demo purposes
+
 // ==========================================
 // 1. GET: Fetch & Parse Map Points
 // ==========================================
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
       .insert({
         title: haveTitle,
         description: haveDesc,
-        UserID: userId || null,
+        UserID: DEMO_USER_ID,
       })
       .select("id")
       .single();
@@ -88,6 +90,7 @@ export async function POST(request: Request) {
         location: postGisPoint,
         offering: offerItem.id,
         wanting: wantItem.id,
+        UserID: DEMO_USER_ID
       })
       .select("id")
       .single();
