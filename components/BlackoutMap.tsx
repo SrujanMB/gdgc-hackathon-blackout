@@ -249,7 +249,15 @@ export default function BlackoutMap() {
 
   const handleDeleteTrade = async (id: number) => {
     try {
-      await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        // Remove immediately from local state so the marker disappears at once,
+        // without waiting for the Supabase realtime event which can be delayed.
+        setLocations((prev) => prev.filter((loc) => loc.id !== id));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        console.warn("Delete failed:", data.error ?? res.status);
+      }
     } catch (err) {
       console.error("Failed to delete trade node:", err);
     }
@@ -376,6 +384,10 @@ export default function BlackoutMap() {
       <MessagesHub
         conversations={conversations}
         onOpenChat={handleMessageClick}
+        onClearAll={() => {
+          setConversations([]);
+          localStorage.removeItem("barter-conversations");
+        }}
         unreadCount={unreadCount}
         onOpen={() => setUnreadCount(0)}
       />

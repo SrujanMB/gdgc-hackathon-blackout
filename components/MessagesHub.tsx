@@ -12,6 +12,7 @@ export interface Conversation {
 interface MessagesHubProps {
   conversations: Conversation[];
   onOpenChat: (tradeOfferId: number, recipientId: number, recipientName: string) => void;
+  onClearAll: () => void;
   unreadCount?: number;
   onOpen?: () => void;
 }
@@ -33,7 +34,7 @@ function avatarColour(name: string) {
   return AVATAR_COLOURS[n % AVATAR_COLOURS.length];
 }
 
-export default function MessagesHub({ conversations, onOpenChat, unreadCount = 0, onOpen }: MessagesHubProps) {
+export default function MessagesHub({ conversations, onOpenChat, onClearAll, unreadCount = 0, onOpen }: MessagesHubProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -103,12 +104,22 @@ export default function MessagesHub({ conversations, onOpenChat, unreadCount = 0
               <MessageCircle size={19} className="text-blue-400" />
               <h2 className="text-base font-bold text-white tracking-wide">Messages</h2>
             </div>
-            <button
-              onClick={close}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              {conversations.length > 0 && (
+                <button
+                  onClick={onClearAll}
+                  className="text-xs text-zinc-400 hover:text-red-400 transition-colors px-2 py-1 rounded-md hover:bg-zinc-800"
+                >
+                  Clear all
+                </button>
+              )}
+              <button
+                onClick={close}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Search */}
