@@ -171,16 +171,22 @@ export type Database = {
       }
       User: {
         Row: {
-          id: number
+          userID: number
           name: string | null
+          email: string | null
+          password_hash: string | null
         }
         Insert: {
-          id?: number
+          userID?: number
           name?: string | null
+          email?: string | null
+          password_hash?: string | null
         }
         Update: {
-          id?: number
+          userID?: number
           name?: string | null
+          email?: string | null
+          password_hash?: string | null
         }
         Relationships: []
       }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { X, Send, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 interface Message {
   id: number;
@@ -25,6 +26,7 @@ export default function ChatModal({
   recipientName,
   onClose,
 }: ChatModalProps) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,8 +34,8 @@ export default function ChatModal({
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mock current user ID - in a real app, this would come from auth
-  const currentUserId = 1;
+  // Use authenticated user ID
+  const currentUserId = user?.userID || 1;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,7 +54,7 @@ export default function ChatModal({
           `/api/messages?senderId=${currentUserId}&receiverId=${recipientId}&tradeOfferId=${tradeOfferId}`,
         );
         const data = await res.json();
-        
+
         if (!res.ok) {
           setError(data.error || "Failed to load messages");
           setMessages([]);
@@ -125,7 +127,9 @@ export default function ChatModal({
             <h2 className="text-base font-bold tracking-wider text-blue-400 uppercase">
               Chat with {recipientName}
             </h2>
-            <p className="text-xs text-zinc-500 mt-1">Trade Node #{tradeOfferId}</p>
+            <p className="text-xs text-zinc-500 mt-1">
+              Trade Node #{tradeOfferId}
+            </p>
           </div>
           <button
             onClick={onClose}
