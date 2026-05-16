@@ -14,6 +14,7 @@ import { renderToString } from "react-dom/server";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import TradeNodeMarkers from "./TradeNodeMarkers";
 import MapControls from "./MapControls";
 import HUDOverlay from "./HUDOverlay";
@@ -73,6 +74,7 @@ const bannerText: Record<Exclude<Mode, "view">, string> = {
 };
 
 export default function BlackoutMap() {
+  const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
   const [mode, setMode] = useState<Mode>("view");
@@ -158,6 +160,14 @@ export default function BlackoutMap() {
     setActiveFormCoords({ lat: myLocation[0], lng: myLocation[1] });
   };
 
+  const handleDeleteTrade = async (id: number) => {
+    try {
+      await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to delete trade node:", err);
+    }
+  };
+
   const handleMessageClick = (
     tradeOfferId: number,
     recipientId: number,
@@ -185,7 +195,9 @@ export default function BlackoutMap() {
 
         <TradeNodeMarkers
           locations={locations}
+          currentUserId={user?.userID ?? 0}
           onMessageClick={handleMessageClick}
+          onDeleteClick={handleDeleteTrade}
         />
 
         {myLocation && (

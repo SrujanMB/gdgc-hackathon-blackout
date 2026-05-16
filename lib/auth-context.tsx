@@ -27,7 +27,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch(`/api/auth/profile?authId=${authId}`);
     if (res.ok) {
       const data = await res.json();
-      setUser(data.user);
+      if (data.user) {
+        setUser({
+          userID: data.user.UserID,
+          name: data.user.name,
+          email: data.user.email,
+        });
+      }
     }
   }, []);
 

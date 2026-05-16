@@ -1,7 +1,7 @@
 "use client";
 
 import { Marker, Popup } from "react-leaflet";
-import { MessageCircle, User } from "lucide-react";
+import { MessageCircle, Trash2, User } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
 
@@ -17,7 +17,9 @@ interface CleanMapNode {
 
 interface TradeNodeMarkersProps {
   locations: CleanMapNode[];
+  currentUserId: number;
   onMessageClick: (tradeOfferId: number, userId: number, name: string) => void;
+  onDeleteClick: (tradeOfferId: number) => void;
 }
 
 const createTradeIcon = () => {
@@ -34,7 +36,7 @@ const createTradeIcon = () => {
   });
 };
 
-export default function TradeNodeMarkers({ locations, onMessageClick }: TradeNodeMarkersProps) {
+export default function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick }: TradeNodeMarkersProps) {
   return (
     <>
       {locations.map((node) => (
@@ -87,13 +89,23 @@ export default function TradeNodeMarkers({ locations, onMessageClick }: TradeNod
                 </div>
               </div>
 
-              <button
-                onClick={() => onMessageClick(node.id, node.userId, node.name)}
-                className="w-full text-center rounded bg-blue-600 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-              >
-                <MessageCircle size={12} />
-                Message
-              </button>
+              {node.userId === currentUserId ? (
+                <button
+                  onClick={() => onDeleteClick(node.id)}
+                  className="w-full text-center rounded bg-red-600 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Trash2 size={12} />
+                  Delete Trade
+                </button>
+              ) : (
+                <button
+                  onClick={() => onMessageClick(node.id, node.userId, node.name)}
+                  className="w-full text-center rounded bg-blue-600 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                >
+                  <MessageCircle size={12} />
+                  Message
+                </button>
+              )}
             </div>
           </Popup>
         </Marker>
