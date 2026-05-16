@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* Ensure the map occupies the entire parent layout container */
+.leaflet-container {
+    width: 100%;
+    height: 100%;
+    background-color: #09090b !important; /* matches tailwind zinc-950 */
+}
+
+/* Strip native Leaflet wrapper boundaries around our custom Lucide markers */
+.custom-leaflet-icon {
+    background: none;
+    border: none;
+}
