@@ -129,7 +129,44 @@ export async function POST(request: Request) {
 }
 
 // ==========================================
-// 3. DELETE: Tear down Trade Node
+// 3. PATCH: Update an Item or Trade status
+// ==========================================
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+
+    // Update Trade_Offer status (e.g. → "completed")
+    if (body.tradeId && body.status) {
+      const { error } = await supabase
+        .from("Trade_Offer")
+        .update({ status: body.status })
+        .eq("id", body.tradeId);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    // Update an Item's title / description
+    if (body.itemId) {
+      const patch: { title?: string; description?: string | null } = {};
+      if (typeof body.title === "string") patch.title = body.title;
+      if (Object.prototype.hasOwnProperty.call(body, "description"))
+        patch.description = body.description ?? null;
+      const { error } = await supabase
+        .from("Item")
+        .update(patch)
+        .eq("id", body.itemId);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// ==========================================
+// 4. DELETE: Tear down Trade Node
 // ==========================================
 export async function DELETE(request: Request) {
   try {
