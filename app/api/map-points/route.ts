@@ -7,7 +7,7 @@ const supabase = createClient<Database>(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const DEMO_USER_ID = 9999; // Temporary user ID for demo purposes
+
 
 // ==========================================
 // 1. GET: Fetch & Parse Map Points
@@ -19,6 +19,7 @@ export async function GET() {
     .select(`
       id,
       location,
+      UserID,
       User ( name ),
       offering_item:Item!Trade_Offer_offering_fkey ( id, title, description ),
       wanting_item:Item!Trade_Offer_wanting_fkey ( id, title, description )
@@ -52,6 +53,7 @@ export async function GET() {
 
     return {
       id: offer.id,
+      userId: offer.UserID,
       latitude,
       longitude,
       name: offer.User?.name || "Unknown Survivor",
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
       .insert({
         title: haveTitle,
         description: haveDesc,
-        UserID: DEMO_USER_ID,
+        UserID: userId,
       })
       .select("id")
       .single();
@@ -103,8 +105,6 @@ export async function POST(request: Request) {
 
     if (wantErr) throw wantErr;
 
-    if (wantErr) throw wantErr;
-
     // C. Insert Complete Trade Offer Entry using a standard WKT string for GEOMETRY
     const { data: tradeOffer, error: tradeErr } = await supabase
       .from("Trade_Offer")
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         location: `SRID=4326;POINT(${lng} ${lat})`, // Standard WKT for geometry
         offering: offerItem.id,
         wanting: wantItem.id,
-        UserID: DEMO_USER_ID,
+        UserID: userId,
       })
       .select("id")
       .single();

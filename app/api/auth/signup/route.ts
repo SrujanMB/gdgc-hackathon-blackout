@@ -7,9 +7,6 @@ const supabase = createClient<Database>(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-// ==========================================
-// POST: Signup - Create a new user
-// ==========================================
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -22,33 +19,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from("User")
-      .select("UserID")
-      .eq("email", email)
-      .single();
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name },
+    });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "User with this email already exists" },
-        { status: 409 },
-      );
-    }
+    if (authError) throw authError;
+    if (!authData.user) throw new Error("Failed to create auth user");
 
-    // Create new user in User table
-    // Note: In production, you should hash the password before storing
-    const { data: user, error } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("User")
       .insert({
         name,
         email,
-        password_hash: password, // TODO: Hash this with bcrypt in production
+        password_hash: "",
+        auth_id: authData.user.id,
       })
       .select("UserID, name, email")
       .single();
 
-    if (error) throw error;
+    if (userError) throw userError;
 
     return NextResponse.json({
       success: true,

@@ -17,7 +17,7 @@ const BlackoutMap = dynamic(() => import("@/components/BlackoutMap"), {
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState("");
 
   useEffect(() => {
@@ -38,8 +38,8 @@ export default function HomePage() {
     return null; // Will redirect
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    await logout();
     router.push("/login");
   };
 

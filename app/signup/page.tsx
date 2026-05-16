@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function SignUp() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -30,7 +30,6 @@ export default function SignUp() {
     e.preventDefault();
     setError("");
 
-    // Validation
     if (!formData.name || !formData.email || !formData.password) {
       setError("All fields are required");
       return;
@@ -49,32 +48,10 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Signup failed");
-        return;
-      }
-
-      login({
-        userID: data.user.userID,
-        name: data.user.name,
-        email: data.user.email,
-      });
-
+      await signup(formData.name, formData.email, formData.password);
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err.message || "Signup failed");
     } finally {
       setIsLoading(false);
     }

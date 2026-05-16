@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 interface CreateTradeModalProps {
   lat: number;
@@ -16,6 +17,7 @@ export default function CreateTradeModal({
   onClose,
   onSuccess,
 }: CreateTradeModalProps) {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,7 +51,7 @@ export default function CreateTradeModal({
           wantDesc,
           // If you have an auth context, pass the userId here.
           // For now, the backend handles it gracefully if missing.
-          userId: null,
+          userId: user?.userID ?? null,
         }),
       });
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 const BlackoutMap = dynamic(() => import("@/components/BlackoutMap"), {
   ssr: false,
@@ -15,23 +16,25 @@ const BlackoutMap = dynamic(() => import("@/components/BlackoutMap"), {
 
 export default function Map() {
   const router = useRouter();
+  const { user, isLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!localStorage.getItem("authenticated")) {
-      router.replace("/");
-    } else {
-      setChecking(false);
+    if (!isLoading && !user) {
+      router.replace("/login");
     }
-  }, [router]);
+  }, [user, isLoading, router]);
 
-  if (checking) {
+  if (isLoading) {
     return (
       <main className="h-screen w-screen bg-zinc-950 flex items-center justify-center">
         <p className="text-zinc-400 font-mono">Loading...</p>
       </main>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (

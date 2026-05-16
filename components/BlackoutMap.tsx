@@ -29,6 +29,7 @@ import ChatModal from "./ChatModal"; // Chat Modal for messaging
 // --- Types ---
 interface CleanMapNode {
   id: number;
+  userId: number;
   latitude: number;
   longitude: number;
   name: string;
@@ -263,7 +264,7 @@ export default function BlackoutMap() {
                   onClick={() =>
                     setSelectedChat({
                       tradeOfferId: node.id,
-                      recipientId: node.id,
+                      recipientId: node.userId,
                       recipientName: node.name,
                     })
                   }

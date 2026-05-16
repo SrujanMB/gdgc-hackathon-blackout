@@ -28,7 +28,6 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    // Validation
     if (!formData.email || !formData.password) {
       setError("Email and password are required");
       return;
@@ -37,31 +36,10 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Login failed");
-        return;
-      }
-
-      login({
-        userID: data.user.userID,
-        name: data.user.name,
-        email: data.user.email,
-      });
-
+      await login(formData.email, formData.password);
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      setError(err.message || "Login failed");
     } finally {
       setIsLoading(false);
     }
