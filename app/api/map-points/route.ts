@@ -32,15 +32,9 @@ export async function GET() {
     let latitude = 0;
     let longitude = 0;
 
-    // Handle EWKB binary format (hex string from Supabase)
+    // Handle location data
     if (offer.location) {
-      if (typeof offer.location === "string" && /^[0-9a-f]+$/i.test(offer.location)) {
-        // EWKB hex format
-        const coords = convertEWKBtoCoords(offer.location);
-        if (coords) {
-          [longitude, latitude] = coords;
-        }
-      } else if (Array.isArray(offer.location)) {
+      if (Array.isArray(offer.location)) {
         // Array format [lng, lat]
         [longitude, latitude] = offer.location;
       } else if (typeof offer.location === "object" && offer.location.coordinates) {
