@@ -54,7 +54,6 @@ export default function ChatModal({
           `/api/messages?senderId=${currentUserId}&receiverId=${recipientId}&tradeOfferId=${tradeOfferId}`,
         );
         const data = await res.json();
-
         if (!res.ok) {
           setError(data.error || "Failed to load messages");
           setMessages([]);
