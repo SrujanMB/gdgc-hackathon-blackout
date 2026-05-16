@@ -26,6 +26,8 @@ export default function CreateTradeModal({
   const [haveDesc, setHaveDesc] = useState("");
   const [wantTitle, setWantTitle] = useState("");
   const [wantDesc, setWantDesc] = useState("");
+  const [offerImageFile, setOfferImageFile] = useState<File | null>(null);
+  const [wantImageFile, setWantImageFile] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,20 +41,26 @@ export default function CreateTradeModal({
 
     try {
       // Send the payload to your unified Next.js API route
+      const formData = new FormData();
+      formData.append("lat", String(lat));
+      formData.append("lng", String(lng));
+      formData.append("haveTitle", haveTitle);
+      formData.append("haveDesc", haveDesc);
+      formData.append("wantTitle", wantTitle);
+      formData.append("wantDesc", wantDesc);
+      if (user?.userID != null) {
+        formData.append("userId", String(user.userID));
+      }
+      if (offerImageFile) {
+        formData.append("offerImage", offerImageFile);
+      }
+      if (wantImageFile) {
+        formData.append("wantImage", wantImageFile);
+      }
+
       const res = await fetch("/api/map-points", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lat,
-          lng,
-          haveTitle,
-          haveDesc,
-          wantTitle,
-          wantDesc,
-          // If you have an auth context, pass the userId here.
-          // For now, the backend handles it gracefully if missing.
-          userId: user?.userID ?? null,
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -113,6 +121,18 @@ export default function CreateTradeModal({
               rows={2}
               className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-600 resize-none"
             />
+            <label className="text-[11px] font-bold text-emerald-500 tracking-wider uppercase block mt-2">
+              Upload Image (Optional)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setOfferImageFile(e.target.files?.[0] ?? null)}
+              className="w-full text-[11px] text-zinc-200 file:mr-3 file:rounded-full file:border file:border-zinc-700 file:bg-zinc-900 file:px-3 file:py-1 file:text-xs file:text-zinc-100"
+            />
+            {offerImageFile && (
+              <p className="text-[11px] text-zinc-400">Selected: {offerImageFile.name}</p>
+            )}
           </div>
 
           {/* --- Item Wanted --- */}
@@ -134,6 +154,18 @@ export default function CreateTradeModal({
               rows={2}
               className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-amber-600 resize-none"
             />
+            <label className="text-[11px] font-bold text-amber-500 tracking-wider uppercase block mt-2">
+              Upload Desired Item Image (Optional)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setWantImageFile(e.target.files?.[0] ?? null)}
+              className="w-full text-[11px] text-zinc-200 file:mr-3 file:rounded-full file:border file:border-zinc-700 file:bg-zinc-900 file:px-3 file:py-1 file:text-xs file:text-zinc-100"
+            />
+            {wantImageFile && (
+              <p className="text-[11px] text-zinc-400">Selected: {wantImageFile.name}</p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-2">

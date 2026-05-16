@@ -21,8 +21,8 @@ export async function GET() {
       location,
       UserID,
       User ( name ),
-      offering_item:Item!Trade_Offer_offering_fkey ( id, title, description ),
-      wanting_item:Item!Trade_Offer_wanting_fkey ( id, title, description )
+      offering_item:Item!Trade_Offer_offering_fkey ( id, title, description, image_url ),
+      wanting_item:Item!Trade_Offer_wanting_fkey ( id, title, description, image_url )
     `);
 
   if (error) {
@@ -70,27 +70,93 @@ export async function GET() {
 // ==========================================
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    // Removed userId from being strictly required here for the Trade_Offer table
-    const { lat, lng, haveTitle, haveDesc, wantTitle, wantDesc, userId } = body;
+    const contentType = request.headers.get("content-type") || "";
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let haveTitle = "";
+    let haveDesc = "";
+    let wantTitle = "";
+    let wantDesc = "";
+    let userId: number | null = null;
+    let offerImage: File | null = null;
+    let wantImage: File | null = null;
 
-    console.log('Received coordinates:', { lat, lng, haveTitle, wantTitle });
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      lat = Number(formData.get("lat"));
+      lng = Number(formData.get("lng"));
+      haveTitle = String(formData.get("haveTitle") ?? "");
+      haveDesc = String(formData.get("haveDesc") ?? "");
+      wantTitle = String(formData.get("wantTitle") ?? "");
+      wantDesc = String(formData.get("wantDesc") ?? "");
+      const rawUserId = formData.get("userId");
+      userId = rawUserId ? Number(rawUserId) : null;
+      const offerFileCandidate = formData.get("offerImage");
+      offerImage = offerFileCandidate instanceof File ? offerFileCandidate : null;
+      const wantFileCandidate = formData.get("wantImage");
+      wantImage = wantFileCandidate instanceof File ? wantFileCandidate : null;
+    } else {
+      const body = await request.json();
+      // Removed userId from being strictly required here for the Trade_Offer table
+      const { lat: bodyLat, lng: bodyLng, haveTitle: bodyHaveTitle, haveDesc: bodyHaveDesc, wantTitle: bodyWantTitle, wantDesc: bodyWantDesc, userId: bodyUserId } = body;
+      lat = Number(bodyLat);
+      lng = Number(bodyLng);
+      haveTitle = bodyHaveTitle;
+      haveDesc = bodyHaveDesc;
+      wantTitle = bodyWantTitle;
+      wantDesc = bodyWantDesc;
+      userId = bodyUserId ?? null;
+    }
 
-    if (!haveTitle || !wantTitle || !lat || !lng) {
+    console.log("Received coordinates:", { lat, lng, haveTitle, wantTitle });
+
+    if (!haveTitle || !wantTitle || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
       );
     }
 
+    let offerImageUrl: string | null = null;
+    let wantImageUrl: string | null = null;
+
+    const uploadImage = async (file: File) => {
+      const extension = file.name.split(".").pop() || "jpg";
+      const fileName = `item-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Item_Images")
+        .upload(fileName, file, { cacheControl: "3600", upsert: false });
+
+      if (uploadError) {
+        console.error("Supabase storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from("Item_Images")
+        .getPublicUrl(fileName);
+      return publicData?.publicUrl ?? null;
+    };
+
+    if (offerImage && offerImage.size > 0) {
+      offerImageUrl = await uploadImage(offerImage);
+    }
+
+    if (wantImage && wantImage.size > 0) {
+      wantImageUrl = await uploadImage(wantImage);
+    }
+
     // A. Insert Offered Asset (Item table does seem to have an owner column based on your types)
+    const offerPayload: any = {
+      title: haveTitle,
+      description: haveDesc,
+      UserID: userId,
+      image_url: offerImageUrl,
+    };
+
     const { data: offerItem, error: offerErr } = await supabase
       .from("Item")
-      .insert({
-        title: haveTitle,
-        description: haveDesc,
-        UserID: userId,
-      })
+      .insert(offerPayload as any)
       .select("id")
       .single();
 
@@ -99,7 +165,7 @@ export async function POST(request: Request) {
     // B. Insert Wanted Asset
     const { data: wantItem, error: wantErr } = await supabase
       .from("Item")
-      .insert({ title: wantTitle, description: wantDesc })
+      .insert({ title: wantTitle, description: wantDesc, image_url: wantImageUrl } as any)
       .select("id")
       .single();
 
