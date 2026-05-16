@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       .insert({
         title: haveTitle,
         description: haveDesc,
-        owner: userId || null,
+        UserID: userId || null,
       })
       .select("id")
       .single();
