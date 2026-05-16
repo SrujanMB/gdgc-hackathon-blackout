@@ -20,6 +20,7 @@ interface ChatModalProps {
   recipientId: number;
   recipientName: string;
   onClose: () => void;
+  onMessageSent?: (content: string) => void;
 }
 
 export default function ChatModal({
@@ -27,6 +28,7 @@ export default function ChatModal({
   recipientId,
   recipientName,
   onClose,
+  onMessageSent,
 }: ChatModalProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -167,6 +169,7 @@ export default function ChatModal({
 
       if (data.message) {
         setMessages((prev) => [...prev, data.message]);
+        onMessageSent?.(newMessage.trim());
       }
       setNewMessage("");
       setError("");

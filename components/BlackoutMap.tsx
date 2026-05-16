@@ -188,6 +188,9 @@ export default function BlackoutMap() {
             return updated;
           });
 
+          // Update the preview text shown in the MessagesHub list
+          updateLastMessage(msg.trade_offer_id!, msg.sender_id!, msg.content);
+
           // Bump the unread badge so the user notices the new message
           setUnreadCount((n) => n + 1);
         },
@@ -261,6 +264,18 @@ export default function BlackoutMap() {
     } catch (err) {
       console.error("Failed to delete trade node:", err);
     }
+  };
+
+  const updateLastMessage = (tradeOfferId: number, recipientId: number, content: string) => {
+    setConversations((prev) => {
+      const updated = prev.map((c) =>
+        c.tradeOfferId === tradeOfferId && c.recipientId === recipientId
+          ? { ...c, lastMessage: content }
+          : c,
+      );
+      localStorage.setItem("barter-conversations", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleMessageClick = (
@@ -378,6 +393,9 @@ export default function BlackoutMap() {
           recipientId={selectedChat.recipientId}
           recipientName={selectedChat.recipientName}
           onClose={() => setSelectedChat(null)}
+          onMessageSent={(content) =>
+            updateLastMessage(selectedChat.tradeOfferId, selectedChat.recipientId, content)
+          }
         />
       )}
 

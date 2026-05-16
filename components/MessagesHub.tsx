@@ -7,6 +7,7 @@ export interface Conversation {
   tradeOfferId: number;
   recipientId: number;
   recipientName: string;
+  lastMessage?: string;
 }
 
 interface MessagesHubProps {
@@ -180,7 +181,7 @@ export default function MessagesHub({ conversations, onOpenChat, onClearAll, unr
                           {conv.recipientName}
                         </p>
                         <p className="text-xs text-zinc-400 truncate mt-0.5">
-                          Trade node #{conv.tradeOfferId}
+                          {conv.lastMessage ?? "No messages yet"}
                         </p>
                       </div>
                     </button>
