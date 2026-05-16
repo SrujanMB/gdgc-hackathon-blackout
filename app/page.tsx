@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 
 const BlackoutMap = dynamic(() => import("@/components/BlackoutMap"), {
   ssr: false,
@@ -13,8 +14,25 @@ const BlackoutMap = dynamic(() => import("@/components/BlackoutMap"), {
 });
 
 export default function Map() {
-  // State for search query (not yet implemented)
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    if (!localStorage.getItem("authenticated")) {
+      router.replace("/login");
+    } else {
+      setChecking(false);
+    }
+  }, [router]);
+
+  if (checking) {
+    return (
+      <main className="h-screen w-screen bg-zinc-950 flex items-center justify-center">
+        <p className="text-zinc-400 font-mono">Loading...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="h-screen w-screen bg-zinc-950 text-white">
