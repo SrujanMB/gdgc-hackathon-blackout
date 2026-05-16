@@ -1,37 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { Store, User, ShieldAlert } from "lucide-react";
-import { renderToString } from "react-dom/server";
+import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet";
+import { ShieldAlert } from "lucide-react";
 import { UserProfile } from "@/types";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Quick utility to convert Lucide Icons into Leaflet-compatible HTML markers
-const createCustomIcon = (isStore: boolean) => {
-  const iconHtml = renderToString(
-    <div
-      className={`p-2 rounded-full border ${
-        isStore
-          ? "bg-emerald-950 text-emerald-400 border-emerald-500"
-          : "bg-zinc-900 text-amber-400 border-amber-600"
-      }`}
-    >
-      {isStore ? <Store size={18} /> : <User size={18} />}
-    </div>,
-  );
-
-  return L.divIcon({
-    html: iconHtml,
-    className: "custom-leaflet-icon", // removes default white background styling
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
-  });
-};
+// No icon utilities: map will display only the base tiles/layout
 
 export default function BlackoutMap() {
   const [locations, setLocations] = useState<UserProfile[]>([]);
   const londonCenter: [number, number] = [51.5074, -0.1278]; // Central London
+  const [center, setCenter] = useState<[number, number]>(londonCenter);
+  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [latInput, setLatInput] = useState<string>(String(londonCenter[0]));
+  const [lngInput, setLngInput] = useState<string>(String(londonCenter[1]));
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/map-points")
@@ -40,78 +24,165 @@ export default function BlackoutMap() {
       .catch((err) => console.error("Failed to load grid points", err));
   }, []);
 
+  // Try to use the user's real location as the start center
+  useEffect(() => {
+    if (!navigator?.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const userCenter: [number, number] = [latitude, longitude];
+        setCenter(userCenter);
+        if (mapInstance) {
+          mapInstance.setView(userCenter, mapInstance.getZoom());
+        }
+        setLatInput(String(latitude));
+        setLngInput(String(longitude));
+        setStatus("Centered to browser geolocation");
+      },
+      (err) => {
+        console.warn("Geolocation unavailable, using default center", err);
+        setLocationError(err.message || "Geolocation error");
+        setStatus("Geolocation unavailable");
+      },
+      { enableHighAccuracy: true, timeout: 5000 },
+    );
+  }, [mapInstance]);
+
+  const handleUseMyLocation = () => {
+    setLocationError(null);
+    if (!navigator?.geolocation) {
+      setLocationError("Geolocation is not available in this browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const userCenter: [number, number] = [latitude, longitude];
+        setCenter(userCenter);
+        setLatInput(String(latitude));
+        setLngInput(String(longitude));
+        if (mapInstance) mapInstance.setView(userCenter, mapInstance.getZoom());
+        setStatus("Centered to your location");
+      },
+      (err) => {
+        setLocationError(err.message || "Failed to get location");
+        setStatus("Failed to get location");
+      },
+      { enableHighAccuracy: true, timeout: 7000 },
+    );
+  };
+
+  const handleApplyManualCoords = () => {
+    setLocationError(null);
+    const lat = parseFloat(latInput);
+    const lng = parseFloat(lngInput);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      setLocationError("Invalid latitude or longitude");
+      return;
+    }
+    const coords: [number, number] = [lat, lng];
+    setCenter(coords);
+    if (mapInstance) mapInstance.setView(coords, mapInstance.getZoom());
+    setStatus("Centered to manual coordinates");
+  };
+
+  // Ensure the map view follows `center` when it changes
+  useEffect(() => {
+    if (!mapInstance) return;
+    try {
+      mapInstance.setView(center, mapInstance.getZoom());
+    } catch (e) {
+      // ignore
+    }
+  }, [center, mapInstance]);
+
+  // Fallback: react-leaflet hook-based updater to ensure map recenters
+  function CenterUpdater({ center }: { center: [number, number] }) {
+    const map = useMap();
+    useEffect(() => {
+      try {
+        map.setView(center, map.getZoom());
+      } catch (e) {
+        // ignore
+      }
+    }, [center, map]);
+    return null;
+  }
+
   return (
     <div className="w-full h-full relative">
       <MapContainer
-        center={londonCenter}
+        center={center}
         zoom={12}
+        whenCreated={(m) => setMapInstance(m)}
         zoomControl={false} // clean minimalist HUD look
         className="w-full h-full"
       >
-        {/* Sleek, free, tokenless dark theme map layer */}
+        {/* Lighter, free, tokenless base map */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+<<<<<<< Updated upstream
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+=======
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
         />
-
-        {!Object.is(location, [])
-          ? ""
-          : locations.map((user) => (
-              <Marker
-                key={user.id}
-                position={[user.latitude, user.longitude]}
-                icon={createCustomIcon(user.is_store)}
-              >
-                <Popup>
-                  <div className="p-1 min-w-[200px] font-sans text-zinc-200">
-                    <h3 className="font-bold text-sm text-zinc-900 border-b pb-1 mb-2">
-                      {user.is_store ? user.business_name : user.name}
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">
-                      Node Type:{" "}
-                      {user.is_store ? "Established Hub" : "Survivor"}
-                    </p>
-
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-emerald-600 font-semibold block text-[11px]">
-                          🟢 OFFERING:
-                        </span>
-                        <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
-                          {user.inventory
-                            .filter((i) => i.type === "offering")
-                            .map((i) => (
-                              <li key={i.id}>{i.title}</li>
-                            ))}
-                        </ul>
-                      </div>
-
-                      <div>
-                        <span className="text-amber-600 font-semibold block text-[11px]">
-                          🔴 SEEKING:
-                        </span>
-                        <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
-                          {user.inventory
-                            .filter((i) => i.type === "seeking")
-                            .map((i) => (
-                              <li key={i.id}>{i.title}</li>
-                            ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+        <CenterUpdater center={center} />
+        {/* Visual indicator for the selected center */}
+        <CircleMarker
+          center={center}
+          radius={8}
+          pathOptions={{ color: "#ff5722", fillColor: "#ffb4a2", fillOpacity: 0.9 }}
+>>>>>>> Stashed changes
+        />
       </MapContainer>
 
       {/* Floating HUD Panel */}
-      <div className="absolute top-4 left-4 bg-zinc-950/90 backdrop-blur border border-zinc-800 p-3 rounded text-xs text-zinc-400 z-[1000] space-y-1 shadow-xl pointer-events-none">
+      <div className="absolute top-4 left-4 bg-zinc-950/90 backdrop-blur border border-zinc-800 p-3 rounded text-xs text-zinc-400 z-[1000] space-y-1 shadow-xl">
         <div className="flex items-center gap-1.5 text-red-500 font-bold tracking-wider">
           <ShieldAlert size={14} />
           <span>LONDON GRID MONITOR</span>
         </div>
         <p>Active Mesh Nodes: {locations.length}</p>
+
+        <div className="mt-2 space-y-1 text-[11px] text-zinc-300">
+          <button
+            onClick={handleUseMyLocation}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-xs"
+          >
+            Use my location
+          </button>
+
+          <div className="flex items-center gap-2">
+            <input
+              value={latInput}
+              onChange={(e) => setLatInput(e.target.value)}
+              className="w-24 px-2 py-1 rounded bg-zinc-900 text-white text-xs"
+              placeholder="lat"
+            />
+            <input
+              value={lngInput}
+              onChange={(e) => setLngInput(e.target.value)}
+              className="w-24 px-2 py-1 rounded bg-zinc-900 text-white text-xs"
+              placeholder="lng"
+            />
+            <button
+              onClick={handleApplyManualCoords}
+              className="bg-sky-600 hover:bg-sky-500 text-white px-2 py-1 rounded text-xs"
+            >
+              Set
+            </button>
+          </div>
+
+            {locationError ? (
+              <div className="text-red-400 text-[11px]">{locationError}</div>
+            ) : null}
+
+            {status ? (
+              <div className="text-green-300 text-[11px]">{status}</div>
+            ) : null}
+        </div>
       </div>
     </div>
   );
