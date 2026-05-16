@@ -12,6 +12,7 @@ interface Message {
   content: string;
   created_at: string;
   trade_offer_id: number | null;
+  sender_name?: string;
 }
 
 interface ChatModalProps {
@@ -36,9 +37,31 @@ export default function ChatModal({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentUserId = user?.userID || 1;
+  const currentUserName = user?.name || "You";
+  const [userCache, setUserCache] = useState<{ [key: number]: string }>({
+    [currentUserId]: currentUserName,
+    [recipientId]: recipientName,
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Fetch user name for a given user ID
+  const fetchUserName = async (userId: number) => {
+    if (userCache[userId]) return userCache[userId];
+    try {
+      const res = await fetch(`/api/auth/profile?userID=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const name = data.user?.name || "Unknown User";
+        setUserCache((prev) => ({ ...prev, [userId]: name }));
+        return name;
+      }
+    } catch (e) {
+      console.error("Failed to fetch user:", e);
+    }
+    return "Unknown User";
   };
 
   useEffect(() => {
@@ -61,7 +84,21 @@ export default function ChatModal({
             setMessages([]);
             return;
           }
-          setMessages(Array.isArray(data) ? data : []);
+          // Fetch sender names for all messages
+          let messagesWithNames = Array.isArray(data) ? data : [];
+          const senderIds = new Set(messagesWithNames.map((m) => m.sender_id).filter((id) => id && !userCache[id]));
+          
+          for (const senderId of senderIds) {
+            await fetchUserName(senderId);
+          }
+
+          // Enrich messages with sender names
+          messagesWithNames = messagesWithNames.map((msg) => ({
+            ...msg,
+            sender_name: userCache[msg.sender_id] || (msg.sender_id === currentUserId ? currentUserName : recipientName),
+          }));
+
+          setMessages(messagesWithNames);
           setError("");
         }
       } catch {
@@ -89,7 +126,11 @@ export default function ChatModal({
         (payload) => {
           if (!ignore) {
             const msg = payload.new as Message;
-            setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+            // Fetch sender name if not cached
+            fetchUserName(msg.sender_id || 0).then(() => {
+              msg.sender_name = userCache[msg.sender_id || 0] || (msg.sender_id === currentUserId ? currentUserName : recipientName);
+              setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+            });
           }
         },
       )
@@ -99,7 +140,7 @@ export default function ChatModal({
       ignore = true;
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, recipientId, tradeOfferId]);
+  }, [currentUserId, recipientId, tradeOfferId, currentUserName, recipientName, userCache]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,12 +218,15 @@ export default function ChatModal({
                   }`}
                 >
                   <div
-                    className={`max-w-xs px-4 py-2 rounded-lg text-sm shadow-md ${
+                    className={`max-w-xs px-4 py-2.5 rounded-lg text-sm shadow-md ${
                       msg.sender_id === currentUserId
                         ? "bg-blue-600 text-white rounded-br-none"
                         : "bg-zinc-800 text-zinc-200 rounded-bl-none"
                     }`}
                   >
+                    <p className="text-xs font-semibold mb-1 opacity-90">
+                      {msg.sender_name || (msg.sender_id === currentUserId ? "You" : recipientName)}
+                    </p>
                     <p className="break-words">{msg.content}</p>
                     <p className="text-xs mt-1.5 opacity-75 font-medium">
                       {new Date(msg.created_at).toLocaleTimeString([], {
