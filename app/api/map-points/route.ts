@@ -22,7 +22,7 @@ export async function GET() {
       UserID,
       User ( name ),
       offering_item:Item!Trade_Offer_offering_fkey ( id, title, description, image_url ),
-      wanting_item:Item!Trade_Offer_wanting_fkey ( id, title, description )
+      wanting_item:Item!Trade_Offer_wanting_fkey ( id, title, description, image_url )
     `);
 
   if (error) {
@@ -78,7 +78,8 @@ export async function POST(request: Request) {
     let wantTitle = "";
     let wantDesc = "";
     let userId: number | null = null;
-    let itemImage: File | null = null;
+    let offerImage: File | null = null;
+    let wantImage: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -90,8 +91,10 @@ export async function POST(request: Request) {
       wantDesc = String(formData.get("wantDesc") ?? "");
       const rawUserId = formData.get("userId");
       userId = rawUserId ? Number(rawUserId) : null;
-      const fileCandidate = formData.get("itemImage");
-      itemImage = fileCandidate instanceof File ? fileCandidate : null;
+      const offerFileCandidate = formData.get("offerImage");
+      offerImage = offerFileCandidate instanceof File ? offerFileCandidate : null;
+      const wantFileCandidate = formData.get("wantImage");
+      wantImage = wantFileCandidate instanceof File ? wantFileCandidate : null;
     } else {
       const body = await request.json();
       // Removed userId from being strictly required here for the Trade_Offer table
@@ -114,13 +117,15 @@ export async function POST(request: Request) {
       );
     }
 
-    let imageUrl: string | null = null;
-    if (itemImage && itemImage.size > 0) {
-      const extension = itemImage.name.split(".").pop() || "jpg";
+    let offerImageUrl: string | null = null;
+    let wantImageUrl: string | null = null;
+
+    const uploadImage = async (file: File) => {
+      const extension = file.name.split(".").pop() || "jpg";
       const fileName = `item-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("Item_Images")
-        .upload(fileName, itemImage, { cacheControl: "3600", upsert: false });
+        .upload(fileName, file, { cacheControl: "3600", upsert: false });
 
       if (uploadError) {
         console.error("Supabase storage upload error:", uploadError);
@@ -130,7 +135,15 @@ export async function POST(request: Request) {
       const { data: publicData } = supabase.storage
         .from("Item_Images")
         .getPublicUrl(fileName);
-      imageUrl = publicData?.publicUrl ?? null;
+      return publicData?.publicUrl ?? null;
+    };
+
+    if (offerImage && offerImage.size > 0) {
+      offerImageUrl = await uploadImage(offerImage);
+    }
+
+    if (wantImage && wantImage.size > 0) {
+      wantImageUrl = await uploadImage(wantImage);
     }
 
     // A. Insert Offered Asset (Item table does seem to have an owner column based on your types)
@@ -138,7 +151,7 @@ export async function POST(request: Request) {
       title: haveTitle,
       description: haveDesc,
       UserID: userId,
-      image_url: imageUrl,
+      image_url: offerImageUrl,
     };
 
     const { data: offerItem, error: offerErr } = await supabase
@@ -152,7 +165,7 @@ export async function POST(request: Request) {
     // B. Insert Wanted Asset
     const { data: wantItem, error: wantErr } = await supabase
       .from("Item")
-      .insert({ title: wantTitle, description: wantDesc })
+      .insert({ title: wantTitle, description: wantDesc, image_url: wantImageUrl } as any)
       .select("id")
       .single();
 

@@ -11,8 +11,8 @@ interface CleanMapNode {
   latitude: number;
   longitude: number;
   name: string;
-  offering: Array<{ id: number; title: string; description: string | null }>;
-  seeking: Array<{ id: number; title: string; description: string | null }>;
+  offering: Array<{ id: number; title: string; description: string | null; image_url?: string | null }>;
+  seeking: Array<{ id: number; title: string; description: string | null; image_url?: string | null }>;
 }
 
 interface TradeNodeMarkersProps {
@@ -46,7 +46,7 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
           icon={createTradeIcon()}
         >
           <Popup>
-            <div className="p-1 min-w-[220px] font-sans text-zinc-200">
+            <div className="p-1 min-w-[200px] font-sans text-zinc-200">
               <h3 className="font-bold text-sm text-zinc-900 border-b pb-1 mb-2 flex items-center gap-1">
                 <span>👤 {node.name}</span>
               </h3>
@@ -58,6 +58,11 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
                   </span>
                   {node.offering.map((item) => (
                     <div key={item.id}>
+                      <img
+                        src={item.image_url || "/noImage.png"}
+                        alt={item.title}
+                        className="mb-2 h-28 w-full rounded object-contain"
+                      />
                       <p className="font-semibold text-zinc-900 text-[13px]">
                         {item.title}
                       </p>
@@ -76,6 +81,19 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
                   </span>
                   {node.seeking.map((item) => (
                     <div key={item.id}>
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.title}
+                          className="mb-2 h-28 w-full rounded object-contain"
+                        />
+                      ) : (
+                        <img
+                          src="/noImage.png"
+                          alt="No image available"
+                          className="mb-2 h-28 w-full rounded object-contain"
+                        />
+                      )}
                       <p className="font-semibold text-zinc-900 text-[13px]">
                         {item.title}
                       </p>
