@@ -56,6 +56,11 @@ export default function HomePage() {
     });
   };
 
+  const handleClearSearchLocation = () => {
+    // Called when user clicks "Locate Me" or places a custom node
+    setSelectedLocation(null);
+  };
+
   return (
     <main className="h-screen w-screen bg-zinc-950 text-white">
       {/* Header with user info and logout */}
@@ -86,7 +91,7 @@ export default function HomePage() {
       <LocationFilter onLocationSelect={handleLocationSelect} />
 
       <div className="h-screen w-full">
-        <BlackoutMap searchLocation={selectedLocation} />
+        <BlackoutMap searchLocation={selectedLocation} onClearSearchLocation={handleClearSearchLocation} />
       </div>
     </main>
   );

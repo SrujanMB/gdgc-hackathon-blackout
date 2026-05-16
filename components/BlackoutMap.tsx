@@ -80,9 +80,10 @@ export interface SearchLocationTarget {
 
 interface BlackoutMapProps {
   searchLocation?: SearchLocationTarget | null;
+  onClearSearchLocation?: () => void;
 }
 
-export default function BlackoutMap({ searchLocation }: BlackoutMapProps) {
+export default function BlackoutMap({ searchLocation, onClearSearchLocation }: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -140,6 +141,7 @@ export default function BlackoutMap({ searchLocation }: BlackoutMapProps) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setMyLocation([pos.coords.latitude, pos.coords.longitude]);
+        onClearSearchLocation?.();
         setLocating(false);
       },
       (err) => {
@@ -157,9 +159,11 @@ export default function BlackoutMap({ searchLocation }: BlackoutMapProps) {
   const handleMapClick = (lat: number, lng: number) => {
     if (mode === "setting-location") {
       setMyLocation([lat, lng]);
+      onClearSearchLocation?.();
       setMode("view");
     } else if (mode === "placing-custom") {
       setActiveFormCoords({ lat, lng });
+      onClearSearchLocation?.();
       setMode("view");
     }
   };
@@ -167,6 +171,7 @@ export default function BlackoutMap({ searchLocation }: BlackoutMapProps) {
   const addAtMyLocation = () => {
     if (!myLocation) return;
     setActiveFormCoords({ lat: myLocation[0], lng: myLocation[1] });
+    onClearSearchLocation?.();
   };
 
   const handleDeleteTrade = async (id: number) => {
