@@ -11,6 +11,7 @@ interface RedMarker {
   id: string;
   lat: number;
   lng: number;
+  placeholder: boolean;
 }
 
 type Mode = "view" | "placing-custom" | "setting-location";
@@ -37,9 +38,15 @@ const createCustomIcon = (isStore: boolean) => {
   });
 };
 
-const createRedIcon = () => {
+const createRedIcon = (placeholder: boolean) => {
   const iconHtml = renderToString(
-    <div className="p-2 rounded-full border bg-red-950 text-red-400 border-red-500">
+    <div
+      className={`p-2 rounded-full border ${
+        placeholder 
+          ? "bg-red-950 text-red-300 border-dashed border-red-500"
+          : "bg-red-950 text-red-400 border-red-500"
+      }`}
+    >
       <MapPin size={18} />
     </div>,
   );
@@ -69,7 +76,7 @@ const createMyLocationIcon = () => {
 function FlyTo({ position }: { position: [number, number] | null }) {
   const map = useMap();
   useEffect(() => {
-    if (position) map.flyTo(position, 15);
+    if (position) map.setView(position, 15, { animate: false });
   }, [position, map]);
   return null;
 }
@@ -106,6 +113,26 @@ export default function BlackoutMap() {
       .catch((err) => console.error("Failed to load grid points", err));
   }, []);
 
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    setLocError("");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setMyLocation([pos.coords.latitude, pos.coords.longitude]);
+        setLocating(false);
+      },
+      (err) => {
+        setLocating(false);
+        if (err.code === 1) {
+          setLocError("Location permission denied — allow it in browser settings");
+        }
+      },
+      { timeout: 10000 },
+    );
+  }, []);
+
   const handleLocateMe = () => {
     setLocError("");
     if (!navigator.geolocation) {
@@ -134,7 +161,10 @@ export default function BlackoutMap() {
     if (mode === "setting-location") {
       setMyLocation([lat, lng]);
     } else if (mode === "placing-custom") {
-      setRedMarkers((prev) => [...prev, { id: crypto.randomUUID(), lat, lng }]);
+      setRedMarkers((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), lat, lng, placeholder: true },
+      ]);
     }
     setMode("view");
   };
@@ -143,7 +173,12 @@ export default function BlackoutMap() {
     if (!myLocation) return;
     setRedMarkers((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), lat: myLocation[0], lng: myLocation[1] },
+      {
+        id: crypto.randomUUID(),
+        lat: myLocation[0],
+        lng: myLocation[1],
+        placeholder: true,
+      },
     ]);
   };
 
@@ -152,7 +187,7 @@ export default function BlackoutMap() {
   };
 
   const bannerText: Record<Exclude<Mode, "view">, string> = {
-    "placing-custom": "Click the map to place one red marker",
+    "placing-custom": "Click the map to place a placeholder trading marker",
     "setting-location": "Click the map to set your location",
   };
 
@@ -162,6 +197,8 @@ export default function BlackoutMap() {
         center={LONDON_CENTER}
         zoom={12}
         zoomControl={false}
+        zoomAnimation={false}
+        fadeAnimation={false}
         className={`w-full h-full${mode !== "view" ? " cursor-crosshair" : ""}`}
       >
         <TileLayer
@@ -172,53 +209,52 @@ export default function BlackoutMap() {
         <FlyTo position={myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
-        {!Object.is(location, [])
-          ? ""
-          : locations.map((user) => (
-              <Marker
-                key={user.id}
-                position={[user.latitude, user.longitude]}
-                icon={createCustomIcon(user.is_store)}
-              >
-                <Popup>
-                  <div className="p-1 min-w-[200px] font-sans text-zinc-200">
-                    <h3 className="font-bold text-sm text-zinc-900 border-b pb-1 mb-2">
-                      {user.is_store ? user.business_name : user.name}
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">
-                      Node Type:{" "}
-                      {user.is_store ? "Established Hub" : "Survivor"}
-                    </p>
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-emerald-600 font-semibold block text-[11px]">
-                          🟢 OFFERING:
-                        </span>
-                        <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
-                          {user.inventory
-                            .filter((i) => i.type === "offering")
-                            .map((i) => (
-                              <li key={i.id}>{i.title}</li>
-                            ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <span className="text-amber-600 font-semibold block text-[11px]">
-                          🔴 SEEKING:
-                        </span>
-                        <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
-                          {user.inventory
-                            .filter((i) => i.type === "seeking")
-                            .map((i) => (
-                              <li key={i.id}>{i.title}</li>
-                            ))}
-                        </ul>
-                      </div>
+        {locations.length > 0 &&
+          locations.map((user) => (
+            <Marker
+              key={user.id}
+              position={[user.latitude, user.longitude]}
+              icon={createCustomIcon(user.is_store)}
+            >
+              <Popup>
+                <div className="p-1 min-w-[200px] font-sans text-zinc-200">
+                  <h3 className="font-bold text-sm text-zinc-900 border-b pb-1 mb-2">
+                    {user.is_store ? user.business_name : user.name}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">
+                    Node Type:{" "}
+                    {user.is_store ? "Established Hub" : "Survivor"}
+                  </p>
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <span className="text-emerald-600 font-semibold block text-[11px]">
+                        🟢 OFFERING:
+                      </span>
+                      <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
+                        {user.inventory
+                          .filter((i) => i.type === "offering")
+                          .map((i) => (
+                            <li key={i.id}>{i.title}</li>
+                          ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="text-amber-600 font-semibold block text-[11px]">
+                        🔴 SEEKING:
+                      </span>
+                      <ul className="list-disc pl-4 space-y-0.5 text-zinc-700">
+                        {user.inventory
+                          .filter((i) => i.type === "seeking")
+                          .map((i) => (
+                            <li key={i.id}>{i.title}</li>
+                          ))}
+                      </ul>
                     </div>
                   </div>
-                </Popup>
-              </Marker>
-            ))}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {myLocation && (
           <Marker position={myLocation} icon={createMyLocationIcon()}>
@@ -240,19 +276,67 @@ export default function BlackoutMap() {
         )}
 
         {redMarkers.map((m) => (
-          <Marker key={m.id} position={[m.lat, m.lng]} icon={createRedIcon()}>
+          <Marker key={m.id} position={[m.lat, m.lng]} icon={createRedIcon(m.placeholder)}>
             <Popup>
-              <div className="p-1 font-sans">
-                <p className="font-bold text-sm text-zinc-900">Red Marker</p>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {m.lat.toFixed(4)}, {m.lng.toFixed(4)}
-                </p>
-                <button
-                  onClick={() => removeMarker(m.id)}
-                  className="text-xs text-red-500 mt-2 hover:underline"
-                >
-                  Remove
-                </button>
+              <div className="p-2 font-sans text-zinc-900 min-w-[220px] space-y-3">
+                {m.placeholder ? (
+                  <>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-violet-300/70 flex items-center justify-center text-violet-700">
+                          <span className="text-sm font-bold">N</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">Name</p>
+                          <p className="text-[11px] text-zinc-500">Trading Away</p>
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-300/60 bg-white/90 p-2 text-xs text-zinc-600 min-h-[64px]">
+                        Trading Away
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
+                        Wants to trade
+                      </label>
+                      <select className="w-full rounded border border-zinc-300 bg-white/90 px-2 py-1 text-sm text-zinc-800">
+                        <option>Wants to trade</option>
+                        <option>Food</option>
+                        <option>Medicine</option>
+                        <option>Tools</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
+                        Message name (optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Message Name"
+                        className="w-full rounded border border-zinc-300 bg-white/90 px-2 py-1 text-sm text-zinc-800"
+                      />
+                    </div>
+                    <button
+                      onClick={() => removeMarker(m.id)}
+                      className="w-full rounded bg-red-500 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-white hover:bg-red-600"
+                    >
+                      Remove placeholder
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-sm">Red Marker</p>
+                    <p className="text-xs text-zinc-500">
+                      {m.lat.toFixed(4)}, {m.lng.toFixed(4)}
+                    </p>
+                    <button
+                      onClick={() => removeMarker(m.id)}
+                      className="text-xs text-red-500 mt-2 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </>
+                )}
               </div>
             </Popup>
           </Marker>
