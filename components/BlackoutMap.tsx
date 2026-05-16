@@ -1,7 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
-import { Store, User, ShieldAlert, MapPin, Navigation, Plus, X, Crosshair, Locate } from "lucide-react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
+import {
+  Store,
+  User,
+  ShieldAlert,
+  MapPin,
+  Navigation,
+  Plus,
+  X,
+  Crosshair,
+  Locate,
+} from "lucide-react";
 import { renderToString } from "react-dom/server";
 import { UserProfile } from "@/types";
 import L from "leaflet";
@@ -42,7 +59,7 @@ const createRedIcon = (placeholder: boolean) => {
   const iconHtml = renderToString(
     <div
       className={`p-2 rounded-full border ${
-        placeholder 
+        placeholder
           ? "bg-red-950 text-red-300 border-dashed border-red-500"
           : "bg-red-950 text-red-400 border-red-500"
       }`}
@@ -126,7 +143,9 @@ export default function BlackoutMap() {
       (err) => {
         setLocating(false);
         if (err.code === 1) {
-          setLocError("Location permission denied — allow it in browser settings");
+          setLocError(
+            "Location permission denied — allow it in browser settings",
+          );
         }
       },
       { timeout: 10000 },
@@ -222,8 +241,7 @@ export default function BlackoutMap() {
                     {user.is_store ? user.business_name : user.name}
                   </h3>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">
-                    Node Type:{" "}
-                    {user.is_store ? "Established Hub" : "Survivor"}
+                    Node Type: {user.is_store ? "Established Hub" : "Survivor"}
                   </p>
                   <div className="space-y-2 text-xs">
                     <div>
@@ -276,7 +294,11 @@ export default function BlackoutMap() {
         )}
 
         {redMarkers.map((m) => (
-          <Marker key={m.id} position={[m.lat, m.lng]} icon={createRedIcon(m.placeholder)}>
+          <Marker
+            key={m.id}
+            position={[m.lat, m.lng]}
+            icon={createRedIcon(m.placeholder)}
+          >
             <Popup>
               <div className="p-2 font-sans text-zinc-900 min-w-[220px] space-y-3">
                 {m.placeholder ? (
@@ -287,8 +309,12 @@ export default function BlackoutMap() {
                           <span className="text-sm font-bold">N</span>
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-zinc-900">Name</p>
-                          <p className="text-[11px] text-zinc-500">Trading Away</p>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            Name
+                          </p>
+                          <p className="text-[11px] text-zinc-500">
+                            Trading Away
+                          </p>
                         </div>
                       </div>
                       <div className="rounded border border-zinc-300/60 bg-white/90 p-2 text-xs text-zinc-600 min-h-[64px]">
@@ -378,7 +404,10 @@ export default function BlackoutMap() {
       {locError && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1001] bg-red-950/95 border border-red-700 px-4 py-2 rounded text-xs text-red-300 flex items-center gap-2 shadow-xl max-w-xs text-center">
           <span>{locError}</span>
-          <button onClick={() => setLocError("")} className="ml-1 text-red-500 hover:text-red-300 shrink-0">
+          <button
+            onClick={() => setLocError("")}
+            className="ml-1 text-red-500 hover:text-red-300 shrink-0"
+          >
             <X size={12} />
           </button>
         </div>
