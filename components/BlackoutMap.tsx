@@ -110,6 +110,7 @@ export default function BlackoutMap() {
   // Tracks messages that arrived while the MessagesHub popup was closed
   const [unreadCount, setUnreadCount] = useState(0);
   const [tradeSuccessToast, setTradeSuccessToast] = useState(false);
+  const [tradeDeletedToast, setTradeDeletedToast] = useState(false);
   // Stable ref so the realtime callback always reads the latest locations
   // without needing to be re-subscribed every time locations changes
   const locationsRef = useRef(locations);
@@ -121,7 +122,20 @@ export default function BlackoutMap() {
         "postgres_changes",
         { event: "*", schema: "public", table: "Trade_Offer" },
         (payload) => {
-          console.log("Trade_Offer realtime payload:", payload);
+          if (payload.eventType === "DELETE") {
+            const deletedId = (payload.old as any).id;
+            // If the buyer had a conversation for this trade, clean it up and notify them
+            setConversations((prev) => {
+              const wasConversing = prev.some((c) => c.tradeOfferId === deletedId);
+              if (!wasConversing) return prev;
+              const updated = prev.filter((c) => c.tradeOfferId !== deletedId);
+              localStorage.setItem(storageKey, JSON.stringify(updated));
+              setSelectedChat((cur) => (cur?.tradeOfferId === deletedId ? null : cur));
+              setTradeDeletedToast(true);
+              setTimeout(() => setTradeDeletedToast(false), 3500);
+              return updated;
+            });
+          }
           getTradeData().then(setLocations).catch(console.error);
         },
       )
@@ -277,9 +291,9 @@ export default function BlackoutMap() {
     try {
       const res = await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
       if (res.ok) {
-        // Remove immediately from local state so the marker disappears at once,
-        // without waiting for the Supabase realtime event which can be delayed.
         setLocations((prev) => prev.filter((loc) => loc.id !== id));
+        setTradeDeletedToast(true);
+        setTimeout(() => setTradeDeletedToast(false), 3500);
       } else {
         const data = await res.json().catch(() => ({}));
         console.warn("Delete failed:", data.error ?? res.status);
@@ -451,6 +465,13 @@ export default function BlackoutMap() {
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 bg-green-950/95 border border-green-600 px-5 py-3 rounded-xl shadow-2xl text-green-300 text-sm font-semibold pointer-events-none">
           <span className="text-green-400 text-lg">✓</span>
           Trade Successful!
+        </div>
+      )}
+
+      {tradeDeletedToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 bg-red-950/95 border border-red-700 px-5 py-3 rounded-xl shadow-2xl text-red-300 text-sm font-semibold pointer-events-none">
+          <span className="text-red-400 text-lg">✕</span>
+          Trade Cancelled
         </div>
       )}
 
