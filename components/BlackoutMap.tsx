@@ -109,8 +109,11 @@ export default function BlackoutMap() {
   });
   // Tracks messages that arrived while the MessagesHub popup was closed
   const [unreadCount, setUnreadCount] = useState(0);
-  const [tradeSuccessToast, setTradeSuccessToast] = useState(false);
-  const [tradeDeletedToast, setTradeDeletedToast] = useState(false);
+  const [toast, setToast] = useState<"success" | "deleted" | null>(null);
+  const showToast = (type: "success" | "deleted") => {
+    setToast(type);
+    setTimeout(() => setToast(null), 3500);
+  };
   // Stable ref so the realtime callback always reads the latest locations
   // without needing to be re-subscribed every time locations changes
   const locationsRef = useRef(locations);
@@ -124,15 +127,13 @@ export default function BlackoutMap() {
         (payload) => {
           if (payload.eventType === "DELETE") {
             const deletedId = (payload.old as any).id;
-            // If the buyer had a conversation for this trade, clean it up and notify them
             setConversations((prev) => {
               const wasConversing = prev.some((c) => c.tradeOfferId === deletedId);
               if (!wasConversing) return prev;
               const updated = prev.filter((c) => c.tradeOfferId !== deletedId);
               localStorage.setItem(storageKey, JSON.stringify(updated));
               setSelectedChat((cur) => (cur?.tradeOfferId === deletedId ? null : cur));
-              setTradeDeletedToast(true);
-              setTimeout(() => setTradeDeletedToast(false), 3500);
+              showToast("deleted");
               return updated;
             });
           }
@@ -183,6 +184,7 @@ export default function BlackoutMap() {
 
           // Buyer accepted — notify the trader and clean up
           if (msg.content === "Trade accepted! ✓") {
+            // Mark so the Trade_Offer DELETE event doesn't also show "Trade Cancelled"
             setSelectedChat((current) =>
               current?.tradeOfferId === msg.trade_offer_id ? null : current,
             );
@@ -191,8 +193,7 @@ export default function BlackoutMap() {
               localStorage.setItem(storageKey, JSON.stringify(updated));
               return updated;
             });
-            setTradeSuccessToast(true);
-            setTimeout(() => setTradeSuccessToast(false), 3500);
+            showToast("success");
             return;
           }
 
@@ -287,13 +288,12 @@ export default function BlackoutMap() {
     setActiveFormCoords({ lat: myLocation[0], lng: myLocation[1] });
   };
 
-  const handleDeleteTrade = async (id: number) => {
+  const handleDeleteTrade = async (id: number, silent = false) => {
     try {
       const res = await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         setLocations((prev) => prev.filter((loc) => loc.id !== id));
-        setTradeDeletedToast(true);
-        setTimeout(() => setTradeDeletedToast(false), 3500);
+        if (!silent) showToast("deleted");
       } else {
         const data = await res.json().catch(() => ({}));
         console.warn("Delete failed:", data.error ?? res.status);
@@ -448,30 +448,30 @@ export default function BlackoutMap() {
           }
           onAccepted={() => {
             const doneId = selectedChat.tradeOfferId;
-            handleDeleteTrade(doneId);
+            handleDeleteTrade(doneId, true);
             setSelectedChat(null);
             setConversations((prev) => {
               const updated = prev.filter((c) => c.tradeOfferId !== doneId);
               localStorage.setItem(storageKey, JSON.stringify(updated));
               return updated;
             });
-            setTradeSuccessToast(true);
-            setTimeout(() => setTradeSuccessToast(false), 3500);
+            showToast("success");
           }}
         />
       )}
 
-      {tradeSuccessToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-green-900/40 border border-green-700 px-5 py-3 rounded-lg shadow-2xl pointer-events-none">
-          <Check size={16} className="text-green-400" />
-          <span className="text-sm font-bold text-green-400 tracking-wide">Trade Completed</span>
-        </div>
-      )}
-
-      {tradeDeletedToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-red-900/40 border border-red-700 px-5 py-3 rounded-lg shadow-2xl pointer-events-none">
-          <X size={16} className="text-red-400" />
-          <span className="text-sm font-bold text-red-400 tracking-wide">Trade Cancelled</span>
+      {toast && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-3 rounded-lg shadow-2xl pointer-events-none ${
+          toast === "success"
+            ? "bg-green-900/40 border border-green-700"
+            : "bg-red-900/40 border border-red-700"
+        }`}>
+          {toast === "success"
+            ? <Check size={16} className="text-green-400" />
+            : <X size={16} className="text-red-400" />}
+          <span className={`text-sm font-bold tracking-wide ${toast === "success" ? "text-green-400" : "text-red-400"}`}>
+            {toast === "success" ? "Trade Completed" : "Trade Cancelled"}
+          </span>
         </div>
       )}
 
