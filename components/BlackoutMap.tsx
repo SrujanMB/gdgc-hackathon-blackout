@@ -574,7 +574,7 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
       )}
 
       {toast && (
-        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-3 rounded-lg shadow-2xl pointer-events-none ${
+        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-3 rounded-lg shadow-2xl pointer-events-none ${
           toast === "success"
             ? "bg-green-900/40 border border-green-700"
             : "bg-red-900/40 border border-red-700"
