@@ -333,7 +333,6 @@ export default function ChatModal({
         body: JSON.stringify({ tradeId: tradeOfferId, status: "completed" }),
       });
       await sendQuickMessage("Trade accepted! ✓ Status set to completed.");
-      // Stay open but replace buttons with a completed banner
       setIsCompleted(true);
     } finally {
       setIsSending(false);
@@ -436,7 +435,7 @@ export default function ChatModal({
               label="Offering"
               colour="emerald"
               item={offeredItem}
-              canEdit={isTrader}
+              canEdit={isTrader && !isCompleted}
               onSave={(title, desc) =>
                 offeredItem ? patchItem(offeredItem, title, desc, "offering") : Promise.resolve()
               }
@@ -451,7 +450,7 @@ export default function ChatModal({
               label="In exchange for"
               colour="amber"
               item={soughtItem}
-              canEdit={!isTrader}
+              canEdit={!isTrader && !isCompleted}
               onSave={(title, desc) =>
                 soughtItem ? patchItem(soughtItem, title, desc, "seeking") : Promise.resolve()
               }
