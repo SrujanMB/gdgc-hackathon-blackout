@@ -169,7 +169,7 @@ export default function LocationFilter({
     }`;
 
   return (
-    <div ref={containerRef} className="absolute top-16 right-4 z-[1000] w-80">
+    <div ref={containerRef} className="absolute top-4 right-4 z-[1000] w-80">
       {/* Search Input */}
       <div className="flex items-center gap-2 bg-zinc-950/95 backdrop-blur border border-zinc-800 rounded-lg px-3 py-2 focus-within:border-red-500 transition">
         <Search size={16} className="text-zinc-400 shrink-0" />

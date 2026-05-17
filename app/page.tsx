@@ -27,6 +27,7 @@ export default function HomePage() {
   const [selectedTradeId, setSelectedTradeId] = React.useState<number | null>(
     null,
   );
+  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -47,6 +48,7 @@ export default function HomePage() {
   }
 
   const handleLogout = async () => {
+    setShowLogoutModal(false);
     await logout();
     router.push("/login");
   };
@@ -67,13 +69,13 @@ export default function HomePage() {
   return (
     <main className="h-dvh w-screen bg-zinc-950 text-white">
       {/* Header with user info and logout */}
-      <div className="absolute top-4 right-4 z-[2000] bg-zinc-950/90 backdrop-blur border-2 border-zinc-800 px-4 py-3 rounded-xl text-xs text-zinc-300 space-y-2">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] bg-zinc-950/90 backdrop-blur border-2 border-zinc-800 px-4 py-3 rounded-xl text-xs text-zinc-300 space-y-2">
         <div className="flex flex-row gap-3 font-bold">
           <p className="font-mono">
             Logged in as: <span className="text-amber-400">{user.name}</span>
           </p>
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutModal(true)}
             className="text-red-400 hover:text-red-300 text-xs font-mono underline"
           >
             Logout
@@ -91,6 +93,39 @@ export default function HomePage() {
           selectedTradeId={selectedTradeId}
         />
       </div>
+
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm p-4"
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-6 text-zinc-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-bold tracking-wider text-red-500 uppercase mb-2">
+              Confirm Logout
+            </h2>
+            <p className="text-sm text-zinc-400 mb-6 font-mono">
+              Are you sure you want to logout?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleLogout}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded text-xs font-bold uppercase tracking-wider transition-all"
+              >
+                Logout
+              </button>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded text-xs font-semibold uppercase tracking-wider transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
