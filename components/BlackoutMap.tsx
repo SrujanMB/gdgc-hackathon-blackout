@@ -94,11 +94,14 @@ export default function BlackoutMap() {
     offering: Array<{ id: number; title: string; description: string | null }>;
     seeking: Array<{ id: number; title: string; description: string | null }>;
   } | null>(null);
+  // Key scoped to the logged-in user so switching accounts starts a fresh list
+  const storageKey = `barter-conversations-${user?.userID ?? "guest"}`;
+
   // Persisted list of everyone the current user has opened a chat with.
   // Loaded from localStorage on mount (safe here because BlackoutMap is ssr:false).
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
-      const raw = localStorage.getItem("barter-conversations");
+      const raw = localStorage.getItem(`barter-conversations-${user?.userID ?? "guest"}`);
       return raw ? (JSON.parse(raw) as Conversation[]) : [];
     } catch {
       return [];
@@ -186,7 +189,7 @@ export default function BlackoutMap() {
               },
             ];
             localStorage.setItem(
-              "barter-conversations",
+              storageKey,
               JSON.stringify(updated),
             );
             return updated;
@@ -277,7 +280,7 @@ export default function BlackoutMap() {
           ? { ...c, lastMessage: content }
           : c,
       );
-      localStorage.setItem("barter-conversations", JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
       return updated;
     });
   };
@@ -304,7 +307,7 @@ export default function BlackoutMap() {
       );
       if (exists) return prev;
       const updated = [...prev, { tradeOfferId, recipientId, recipientName }];
-      localStorage.setItem("barter-conversations", JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
       return updated;
     });
   };
@@ -421,7 +424,7 @@ export default function BlackoutMap() {
         onOpenChat={handleMessageClick}
         onClearAll={() => {
           setConversations([]);
-          localStorage.removeItem("barter-conversations");
+          localStorage.removeItem(storageKey);
         }}
         unreadCount={unreadCount}
         onOpen={() => setUnreadCount(0)}
