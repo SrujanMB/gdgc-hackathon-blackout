@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   MapContainer,
   TileLayer,
@@ -23,7 +29,12 @@ import CreateTradeModal from "./CreateTradeModal";
 import ChatModal from "./ChatModal";
 import MessagesHub, { type Conversation } from "./MessagesHub";
 
-function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+function haversine(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -133,7 +144,13 @@ interface BlackoutMapProps {
   onSettle?: (center: [number, number]) => void;
 }
 
-export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId, radiusKm, onSettle }: BlackoutMapProps) {
+export default React.memo(function BlackoutMap({
+  searchLocation,
+  onClearSearchLocation,
+  selectedTradeId,
+  radiusKm,
+  onSettle,
+}: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -160,7 +177,9 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
   // Loaded from localStorage on mount (safe here because BlackoutMap is ssr:false).
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
-      const raw = localStorage.getItem(`barter-conversations-${user?.userID ?? "guest"}`);
+      const raw = localStorage.getItem(
+        `barter-conversations-${user?.userID ?? "guest"}`,
+      );
       return raw ? (JSON.parse(raw) as Conversation[]) : [];
     } catch {
       return [];
@@ -187,11 +206,15 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
           if (payload.eventType === "DELETE") {
             const deletedId = (payload.old as any).id;
             setConversations((prev) => {
-              const wasConversing = prev.some((c) => c.tradeOfferId === deletedId);
+              const wasConversing = prev.some(
+                (c) => c.tradeOfferId === deletedId,
+              );
               if (!wasConversing) return prev;
               const updated = prev.filter((c) => c.tradeOfferId !== deletedId);
               localStorage.setItem(storageKey, JSON.stringify(updated));
-              setSelectedChat((cur) => (cur?.tradeOfferId === deletedId ? null : cur));
+              setSelectedChat((cur) =>
+                cur?.tradeOfferId === deletedId ? null : cur,
+              );
               showToast("deleted");
               return updated;
             });
@@ -248,7 +271,9 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
               current?.tradeOfferId === msg.trade_offer_id ? null : current,
             );
             setConversations((prev) => {
-              const updated = prev.filter((c) => c.tradeOfferId !== msg.trade_offer_id);
+              const updated = prev.filter(
+                (c) => c.tradeOfferId !== msg.trade_offer_id,
+              );
               localStorage.setItem(storageKey, JSON.stringify(updated));
               return updated;
             });
@@ -278,10 +303,7 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
                 recipientName: senderName,
               },
             ];
-            localStorage.setItem(
-              storageKey,
-              JSON.stringify(updated),
-            );
+            localStorage.setItem(storageKey, JSON.stringify(updated));
             return updated;
           });
 
@@ -303,7 +325,7 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => setMyLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => { },
+      () => {},
       { timeout: 10000 },
     );
   }, []);
@@ -366,7 +388,11 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
     }
   }, []);
 
-  const updateLastMessage = (tradeOfferId: number, recipientId: number, content: string) => {
+  const updateLastMessage = (
+    tradeOfferId: number,
+    recipientId: number,
+    content: string,
+  ) => {
     setConversations((prev) => {
       const updated = prev.map((c) =>
         c.tradeOfferId === tradeOfferId && c.recipientId === recipientId
@@ -418,7 +444,9 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
   const myLocationIcon = useMemo(() => createMyLocationIcon(), []);
   const centerRef = useRef<[number, number]>([-36.8485, 174.7645]);
   const [settledKey, setSettledKey] = useState(0);
-  const [settledCenter, setSettledCenter] = useState<[number, number]>([-36.8485, 174.7645]);
+  const [settledCenter, setSettledCenter] = useState<[number, number]>([
+    -36.8485, 174.7645,
+  ]);
 
   const handleSettle = useCallback(() => {
     const c = centerRef.current;
@@ -479,7 +507,13 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
             }}
           />
         ) : null}
-        <FlyTo position={searchLocation ? [searchLocation.lat, searchLocation.lng] : myLocation} />
+        <FlyTo
+          position={
+            searchLocation
+              ? [searchLocation.lat, searchLocation.lng]
+              : myLocation
+          }
+        />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
         <TradeNodeMarkers
@@ -510,10 +544,14 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
         )}
       </MapContainer>
 
-      <HUDOverlay nodeCount={filteredLocations.length} totalCount={locations.length} myLocation={myLocation} />
+      <HUDOverlay
+        nodeCount={filteredLocations.length}
+        totalCount={locations.length}
+        myLocation={myLocation}
+      />
 
       {mode !== "view" && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-zinc-950/95 border border-zinc-700 px-4 py-2 rounded text-sm text-zinc-200 flex items-center gap-2 shadow-xl">
+        <div className="absolute top-48 left-1/2 -translate-x-1/2 z-[1001] bg-zinc-950/95 border-2 border-zinc-700 px-4 py-2 rounded-xl text-sm text-zinc-200 flex items-center gap-2 shadow-xl">
           <Crosshair size={14} className="text-red-400" />
           <span>{bannerText[mode]}</span>
           <button
@@ -568,7 +606,11 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
           seeking={selectedChat.seeking}
           onClose={() => setSelectedChat(null)}
           onMessageSent={(content) =>
-            updateLastMessage(selectedChat.tradeOfferId, selectedChat.recipientId, content)
+            updateLastMessage(
+              selectedChat.tradeOfferId,
+              selectedChat.recipientId,
+              content,
+            )
           }
           onAccepted={() => {
             const doneId = selectedChat.tradeOfferId;
@@ -585,15 +627,21 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
       )}
 
       {toast && (
-        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-3 rounded-lg shadow-2xl pointer-events-none ${
-          toast === "success"
-            ? "bg-green-900/40 border border-green-700"
-            : "bg-red-900/40 border border-red-700"
-        }`}>
-          {toast === "success"
-            ? <Check size={16} className="text-green-400" />
-            : <X size={16} className="text-red-400" />}
-          <span className={`text-sm font-bold tracking-wide ${toast === "success" ? "text-green-400" : "text-red-400"}`}>
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-3 rounded-lg shadow-2xl pointer-events-none ${
+            toast === "success"
+              ? "bg-green-900/40 border border-green-700"
+              : "bg-red-900/40 border border-red-700"
+          }`}
+        >
+          {toast === "success" ? (
+            <Check size={16} className="text-green-400" />
+          ) : (
+            <X size={16} className="text-red-400" />
+          )}
+          <span
+            className={`text-sm font-bold tracking-wide ${toast === "success" ? "text-green-400" : "text-red-400"}`}
+          >
             {toast === "success" ? "Trade Completed" : "Trade Cancelled"}
           </span>
         </div>
