@@ -24,7 +24,9 @@ export default function HomePage() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [selectedTradeId, setSelectedTradeId] = React.useState<number | null>(null);
+  const [selectedTradeId, setSelectedTradeId] = React.useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -63,36 +65,31 @@ export default function HomePage() {
   };
 
   return (
-    <main className="h-screen w-screen bg-zinc-950 text-white">
+    <main className="h-dvh w-screen bg-zinc-950 text-white">
       {/* Header with user info and logout */}
-      <div className="absolute top-4 left-4 z-[999] bg-zinc-950/90 backdrop-blur border border-zinc-800 px-4 py-3 rounded text-xs text-zinc-300 space-y-2">
-        <p className="font-mono">
-          Logged in as: <span className="text-amber-400">{user.name}</span>
-        </p>
-        <button
-          onClick={handleLogout}
-          className="text-red-400 hover:text-red-300 text-xs font-mono underline"
-        >
-          Logout
-        </button>
-      </div>
-
-      {/* Search bar */}
-      <div className="absolute top-4 right-4 z-[1000]">
-        <input
-          type="text"
-          placeholder="Search items..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-64 px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-400 focus:outline-none focus:border-red-500"
-        />
+      <div className="absolute top-4 right-4 z-[2000] bg-zinc-950/90 backdrop-blur border-2 border-zinc-800 px-4 py-3 rounded-xl text-xs text-zinc-300 space-y-2">
+        <div className="flex flex-row gap-3 font-bold">
+          <p className="font-mono">
+            Logged in as: <span className="text-amber-400">{user.name}</span>
+          </p>
+          <button
+            onClick={handleLogout}
+            className="text-red-400 hover:text-red-300 text-xs font-mono underline"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Location Filter Panel */}
       <LocationFilter onLocationSelect={handleLocationSelect} />
 
       <div className="h-screen w-full">
-        <BlackoutMap searchLocation={selectedLocation} onClearSearchLocation={handleClearSearchLocation} selectedTradeId={selectedTradeId} />
+        <BlackoutMap
+          searchLocation={selectedLocation}
+          onClearSearchLocation={handleClearSearchLocation}
+          selectedTradeId={selectedTradeId}
+        />
       </div>
     </main>
   );

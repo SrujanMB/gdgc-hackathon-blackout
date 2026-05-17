@@ -169,7 +169,7 @@ export default function LocationFilter({
     }`;
 
   return (
-    <div ref={containerRef} className="absolute top-20 right-4 z-[1000] w-80">
+    <div ref={containerRef} className="absolute top-16 right-4 z-[1000] w-80">
       {/* Search Input */}
       <div className="flex items-center gap-2 bg-zinc-950/95 backdrop-blur border border-zinc-800 rounded-lg px-3 py-2 focus-within:border-red-500 transition">
         <Search size={16} className="text-zinc-400 shrink-0" />
@@ -196,46 +196,46 @@ export default function LocationFilter({
         )}
       </div>
 
-            {/* Filter Pills — always visible below search bar */}
-            <div className="flex items-center gap-1.5 mt-1.5">
-                <button
-                    onClick={() => {
-                        if (itemsEnabled && !peopleEnabled) return;
-                        setItemsEnabled((v) => !v);
-                    }}
-                    className={pillClass(itemsEnabled)}
-                >
-                    Items
-                </button>
-                <button
-                    onClick={() => {
-                        if (peopleEnabled && !itemsEnabled) return;
-                        setPeopleEnabled((v) => !v);
-                    }}
-                    className={pillClass(peopleEnabled)}
-                >
-                    People
-                </button>
-                <span className="text-zinc-700 text-xs font-mono mx-0.5">|</span>
-                <button
-                    onClick={() => {
-                        if (offersEnabled && !requestsEnabled) return;
-                        setOffersEnabled((v) => !v);
-                    }}
-                    className={pillClass(offersEnabled)}
-                >
-                    Offers
-                </button>
-                <button
-                    onClick={() => {
-                        if (requestsEnabled && !offersEnabled) return;
-                        setRequestsEnabled((v) => !v);
-                    }}
-                    className={pillClass(requestsEnabled)}
-                >
-                    Requests
-                </button>
-            </div>
+      {/* Filter Pills — always visible below search bar */}
+      <div className="flex items-center gap-1.5 mt-1.5">
+        <button
+          onClick={() => {
+            if (itemsEnabled && !peopleEnabled) return;
+            setItemsEnabled((v) => !v);
+          }}
+          className={pillClass(itemsEnabled)}
+        >
+          Items
+        </button>
+        <button
+          onClick={() => {
+            if (peopleEnabled && !itemsEnabled) return;
+            setPeopleEnabled((v) => !v);
+          }}
+          className={pillClass(peopleEnabled)}
+        >
+          People
+        </button>
+        <span className="text-zinc-700 text-xs font-mono mx-0.5">|</span>
+        <button
+          onClick={() => {
+            if (offersEnabled && !requestsEnabled) return;
+            setOffersEnabled((v) => !v);
+          }}
+          className={pillClass(offersEnabled)}
+        >
+          Offers
+        </button>
+        <button
+          onClick={() => {
+            if (requestsEnabled && !offersEnabled) return;
+            setRequestsEnabled((v) => !v);
+          }}
+          className={pillClass(requestsEnabled)}
+        >
+          Requests
+        </button>
+      </div>
 
       {/* Dropdown Results — positioned below the pills */}
       {isOpen && results.length > 0 && (
