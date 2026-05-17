@@ -41,6 +41,23 @@ const TRADE_ICON = (() => {
   });
 })();
 
+const tradeNodeMarkersAreEqual = (
+  prev: TradeNodeMarkersProps,
+  next: TradeNodeMarkersProps,
+) => {
+  if (prev.locations === next.locations) return true;
+  if (prev.locations.length !== next.locations.length) return false;
+  for (let i = 0; i < prev.locations.length; i++) {
+    if (prev.locations[i].id !== next.locations[i].id) return false;
+  }
+  return (
+    prev.currentUserId === next.currentUserId &&
+    prev.openTradeId === next.openTradeId &&
+    prev.onMessageClick === next.onMessageClick &&
+    prev.onDeleteClick === next.onDeleteClick
+  );
+};
+
 export default React.memo(function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick, openTradeId }: TradeNodeMarkersProps) {
   const markerRefs = useRef<Map<number, L.Marker>>(new Map());
 
@@ -132,4 +149,4 @@ export default React.memo(function TradeNodeMarkers({ locations, currentUserId, 
       ))}
     </>
   );
-});
+}, tradeNodeMarkersAreEqual);

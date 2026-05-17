@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -132,7 +132,7 @@ interface BlackoutMapProps {
   onSettle?: (center: [number, number]) => void;
 }
 
-export default function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId, radiusKm, onSettle }: BlackoutMapProps) {
+export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId, radiusKm, onSettle }: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -241,19 +241,32 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
   const myLocationIcon = useMemo(() => createMyLocationIcon(), []);
   const centerRef = useRef<[number, number]>([-36.8485, 174.7645]);
   const [settledKey, setSettledKey] = useState(0);
+  const [settledCenter, setSettledCenter] = useState<[number, number]>([-36.8485, 174.7645]);
 
   const handleSettle = useCallback(() => {
+    const c = centerRef.current;
+    setSettledCenter(c);
     setSettledKey((k) => k + 1);
-    onSettle?.(centerRef.current);
+    onSettle?.(c);
   }, [onSettle]);
 
+  const cachedFilteredRef = useRef<any[]>([]);
   const filteredLocations = useMemo(() => {
     if (!radiusKm) return locations;
     const c = centerRef.current;
-    return locations.filter((loc: any) => {
+    const result = locations.filter((loc: any) => {
       const dist = haversine(c[0], c[1], loc.latitude, loc.longitude);
       return dist <= radiusKm;
     });
+    const prev = cachedFilteredRef.current;
+    if (
+      result.length === prev.length &&
+      result.every((loc, i) => loc.id === prev[i].id)
+    ) {
+      return prev;
+    }
+    cachedFilteredRef.current = result;
+    return result;
     // settledKey triggers re-compute when user stops moving
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locations, radiusKm, settledKey]);
@@ -274,10 +287,10 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
 
         <style>{`@keyframes circle-fade-in{from{opacity:0}}.animate-circle-fade-in{animation:circle-fade-in 0.4s ease-out}`}</style>
         <MapCenterTracker centerRef={centerRef} onSettle={handleSettle} />
-        {radiusKm ? (
+        {radiusKm && radiusKm <= 10 ? (
           <Circle
-            key={`${centerRef.current[0].toFixed(3)}_${centerRef.current[1].toFixed(3)}_${radiusKm}`}
-            center={centerRef.current}
+            key={`${settledCenter[0].toFixed(3)}_${settledCenter[1].toFixed(3)}_${radiusKm}`}
+            center={settledCenter}
             radius={radiusKm * 1000}
             pathOptions={{
               color: "#a1a1aa",
@@ -378,4 +391,4 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
       )}
     </div>
   );
-}
+});
