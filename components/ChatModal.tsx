@@ -210,6 +210,55 @@ export default function ChatModal({
     return () => { ignore = true; supabase.removeChannel(channel); };
   }, [currentUserId, recipientId, tradeOfferId]);
 
+  // Live-sync item edits and trade status from the other party
+  useEffect(() => {
+    const offeredId = offeredItem?.id;
+    const soughtId = soughtItem?.id;
+
+    let channel = supabase.channel(`trade-details-${tradeOfferId}`);
+
+    // Watch the offering Item row for title/description edits
+    if (offeredId) {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "Item", filter: `id=eq.${offeredId}` },
+        (payload) => {
+          const updated = payload.new as TradeItem;
+          setOfferedItem(updated);
+        },
+      );
+    }
+
+    // Watch the seeking Item row
+    if (soughtId) {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "Item", filter: `id=eq.${soughtId}` },
+        (payload) => {
+          const updated = payload.new as TradeItem;
+          setSoughtItem(updated);
+        },
+      );
+    }
+
+    // Watch the trade offer status (so the completed banner shows for the other party too)
+    channel = channel.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "Trade_Offer", filter: `id=eq.${tradeOfferId}` },
+      (payload) => {
+        if ((payload.new as { status: string }).status === "completed") {
+          setIsCompleted(true);
+        }
+      },
+    );
+
+    channel.subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  // Only re-subscribe if the item IDs or trade ID change — not on every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offeredItem?.id, soughtItem?.id, tradeOfferId]);
+
   const sendQuickMessage = async (content: string) => {
     const res = await fetch("/api/messages", {
       method: "POST",
