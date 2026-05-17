@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   MapContainer,
   TileLayer,
   Marker,
   Popup,
+  Circle,
   useMapEvents,
   useMap,
 } from "react-leaflet";
@@ -21,6 +22,20 @@ import HUDOverlay from "./HUDOverlay";
 import CreateTradeModal from "./CreateTradeModal";
 import ChatModal from "./ChatModal";
 import MessagesHub, { type Conversation } from "./MessagesHub";
+
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export type Mode = "view" | "placing-custom" | "setting-location";
 
@@ -42,9 +57,40 @@ const createMyLocationIcon = () => {
 
 function FlyTo({ position }: { position: [number, number] | null }) {
   const map = useMap();
+  const lat = position?.[0];
+  const lng = position?.[1];
   useEffect(() => {
-    if (position) map.setView(position, 15, { animate: true });
-  }, [position, map]);
+    if (lat == null || lng == null) return;
+    map.setView([lat, lng], 15, { animate: true });
+  }, [lat, lng, map]);
+  return null;
+}
+
+function MapCenterTracker({
+  centerRef,
+  onSettle,
+}: {
+  centerRef: React.MutableRefObject<[number, number]>;
+  onSettle: () => void;
+}) {
+  const map = useMap();
+  const settleTimer = useRef<number | undefined>(undefined);
+  const onSettleRef = useRef(onSettle);
+  onSettleRef.current = onSettle;
+
+  useEffect(() => {
+    const handle = () => {
+      const c = map.getCenter();
+      centerRef.current = [c.lat, c.lng];
+      if (settleTimer.current !== undefined) clearTimeout(settleTimer.current);
+      settleTimer.current = window.setTimeout(onSettleRef.current, 450);
+    };
+    map.on("moveend", handle);
+    return () => {
+      map.off("moveend", handle);
+      if (settleTimer.current !== undefined) clearTimeout(settleTimer.current);
+    };
+  }, [map, centerRef]);
   return null;
 }
 
@@ -74,7 +120,20 @@ const bannerText: Record<Exclude<Mode, "view">, string> = {
   "setting-location": "Click the map to set your location",
 };
 
-export default function BlackoutMap() {
+export interface SearchLocationTarget {
+  lat: number;
+  lng: number;
+}
+
+interface BlackoutMapProps {
+  searchLocation?: SearchLocationTarget | null;
+  onClearSearchLocation?: () => void;
+  selectedTradeId?: number | null;
+  radiusKm?: number;
+  onSettle?: (center: [number, number]) => void;
+}
+
+export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId, radiusKm, onSettle }: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -244,7 +303,7 @@ export default function BlackoutMap() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => setMyLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
+      () => { },
       { timeout: 10000 },
     );
   }, []);
@@ -259,6 +318,7 @@ export default function BlackoutMap() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setMyLocation([pos.coords.latitude, pos.coords.longitude]);
+        onClearSearchLocation?.();
         setLocating(false);
       },
       (err) => {
@@ -276,9 +336,11 @@ export default function BlackoutMap() {
   const handleMapClick = (lat: number, lng: number) => {
     if (mode === "setting-location") {
       setMyLocation([lat, lng]);
+      onClearSearchLocation?.();
       setMode("view");
     } else if (mode === "placing-custom") {
       setActiveFormCoords({ lat, lng });
+      onClearSearchLocation?.();
       setMode("view");
     }
   };
@@ -286,9 +348,10 @@ export default function BlackoutMap() {
   const addAtMyLocation = () => {
     if (!myLocation) return;
     setActiveFormCoords({ lat: myLocation[0], lng: myLocation[1] });
+    onClearSearchLocation?.();
   };
 
-  const handleDeleteTrade = async (id: number, silent = false) => {
+  const handleDeleteTrade = useCallback(async (id: number, silent = false) => {
     try {
       const res = await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -301,7 +364,7 @@ export default function BlackoutMap() {
     } catch (err) {
       console.error("Failed to delete trade node:", err);
     }
-  };
+  }, []);
 
   const updateLastMessage = (tradeOfferId: number, recipientId: number, content: string) => {
     setConversations((prev) => {
@@ -330,7 +393,6 @@ export default function BlackoutMap() {
       offering: node?.offering ?? [],
       seeking: node?.seeking ?? [],
     });
-    // Add to conversation history if this pair hasn't been chatted before
     setConversations((prev) => {
       const exists = prev.some(
         (c) => c.tradeOfferId === tradeOfferId && c.recipientId === recipientId,
@@ -341,6 +403,38 @@ export default function BlackoutMap() {
       return updated;
     });
   };
+
+  const myLocationIcon = useMemo(() => createMyLocationIcon(), []);
+  const centerRef = useRef<[number, number]>([-36.8485, 174.7645]);
+  const [settledKey, setSettledKey] = useState(0);
+  const [settledCenter, setSettledCenter] = useState<[number, number]>([-36.8485, 174.7645]);
+
+  const handleSettle = useCallback(() => {
+    const c = centerRef.current;
+    setSettledCenter(c);
+    setSettledKey((k) => k + 1);
+    onSettle?.(c);
+  }, [onSettle]);
+
+  const cachedFilteredRef = useRef<any[]>([]);
+  const filteredLocations = useMemo(() => {
+    if (!radiusKm) return locations;
+    const c = centerRef.current;
+    const result = locations.filter((loc: any) => {
+      const dist = haversine(c[0], c[1], loc.latitude, loc.longitude);
+      return dist <= radiusKm;
+    });
+    const prev = cachedFilteredRef.current;
+    if (
+      result.length === prev.length &&
+      result.every((loc, i) => loc.id === prev[i].id)
+    ) {
+      return prev;
+    }
+    cachedFilteredRef.current = result;
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locations, radiusKm, settledKey]);
 
   return (
     <div className="w-full h-full relative">
@@ -356,18 +450,37 @@ export default function BlackoutMap() {
           className="dark:invert"
         />
 
-        <FlyTo position={myLocation} />
+        <style>{`@keyframes circle-fade-in{from{opacity:0}}.animate-circle-fade-in{animation:circle-fade-in 0.4s ease-out}`}</style>
+        <MapCenterTracker centerRef={centerRef} onSettle={handleSettle} />
+        {radiusKm && radiusKm <= 10 ? (
+          <Circle
+            key={`${settledCenter[0].toFixed(3)}_${settledCenter[1].toFixed(3)}_${radiusKm}`}
+            center={settledCenter}
+            radius={radiusKm * 1000}
+            pathOptions={{
+              color: "#a1a1aa",
+              weight: 1.5,
+              opacity: 0.5,
+              fillColor: "#a1a1aa",
+              fillOpacity: 0.06,
+              dashArray: "4 8",
+              className: "animate-circle-fade-in",
+            }}
+          />
+        ) : null}
+        <FlyTo position={searchLocation ? [searchLocation.lat, searchLocation.lng] : myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
         <TradeNodeMarkers
-          locations={locations}
+          locations={filteredLocations}
           currentUserId={user?.userID ?? 0}
           onMessageClick={handleMessageClick}
           onDeleteClick={handleDeleteTrade}
+          openTradeId={selectedTradeId}
         />
 
         {myLocation && (
-          <Marker position={myLocation} icon={createMyLocationIcon()}>
+          <Marker position={myLocation} icon={myLocationIcon}>
             <Popup>
               <div className="p-1 font-sans">
                 <p className="font-bold text-sm text-zinc-900">My Location</p>
@@ -386,7 +499,7 @@ export default function BlackoutMap() {
         )}
       </MapContainer>
 
-      <HUDOverlay nodeCount={locations.length} myLocation={myLocation} />
+      <HUDOverlay nodeCount={filteredLocations.length} totalCount={locations.length} myLocation={myLocation} />
 
       {mode !== "view" && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-zinc-950/95 border border-zinc-700 px-4 py-2 rounded text-sm text-zinc-200 flex items-center gap-2 shadow-xl">
@@ -487,4 +600,4 @@ export default function BlackoutMap() {
       />
     </div>
   );
-}
+});

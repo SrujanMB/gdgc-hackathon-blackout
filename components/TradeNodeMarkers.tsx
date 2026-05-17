@@ -4,6 +4,7 @@ import { Marker, Popup } from "react-leaflet";
 import { MessageCircle, Trash2, User } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
+import React, { useEffect, useRef } from "react";
 
 interface CleanMapNode {
   id: number;
@@ -20,6 +21,7 @@ interface TradeNodeMarkersProps {
   currentUserId: number;
   onMessageClick: (tradeOfferId: number, userId: number, name: string) => void;
   onDeleteClick: (tradeOfferId: number) => void;
+  openTradeId?: number | null;
 }
 
 const createTradeIcon = (isOwn: boolean) => {
@@ -42,14 +44,46 @@ const createTradeIcon = (isOwn: boolean) => {
   });
 };
 
-export default function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick }: TradeNodeMarkersProps) {
+const tradeNodeMarkersAreEqual = (
+  prev: TradeNodeMarkersProps,
+  next: TradeNodeMarkersProps,
+) => {
+  if (prev.locations === next.locations) return true;
+  if (prev.locations.length !== next.locations.length) return false;
+  for (let i = 0; i < prev.locations.length; i++) {
+    if (prev.locations[i].id !== next.locations[i].id) return false;
+  }
+  return (
+    prev.currentUserId === next.currentUserId &&
+    prev.openTradeId === next.openTradeId &&
+    prev.onMessageClick === next.onMessageClick &&
+    prev.onDeleteClick === next.onDeleteClick
+  );
+};
+
+export default React.memo(function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick, openTradeId }: TradeNodeMarkersProps) {
+  const markerRefs = useRef<Map<number, L.Marker>>(new Map());
+
+  useEffect(() => {
+    if (openTradeId != null) {
+      const marker = markerRefs.current.get(openTradeId);
+      if (marker) {
+        marker.openPopup();
+      }
+    }
+  }, [openTradeId]);
+
   return (
     <>
+      <style>{`@keyframes marker-fade-in{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}`}</style>
       {locations.map((node) => (
         <Marker
           key={node.id}
           position={[node.latitude, node.longitude]}
           icon={createTradeIcon(node.userId === currentUserId)}
+          ref={(ref) => {
+            if (ref) markerRefs.current.set(node.id, ref);
+          }}
         >
           <Popup>
             <div className="p-1 min-w-[200px] font-sans text-zinc-200">
@@ -136,4 +170,4 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
       ))}
     </>
   );
-}
+}, tradeNodeMarkersAreEqual);
