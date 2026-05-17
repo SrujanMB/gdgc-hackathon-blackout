@@ -28,6 +28,14 @@ export default function HomePage() {
     null,
   );
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+  const [radiusKm, setRadiusKm] = React.useState(10);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const mapCenterRef = React.useRef<[number, number]>([-36.8485, 174.7645]);
+  const getMapCenter = React.useCallback(() => mapCenterRef.current, []);
+  const handleMapSettle = React.useCallback((center: [number, number]) => {
+    mapCenterRef.current = center;
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -84,15 +92,31 @@ export default function HomePage() {
       </div>
 
       {/* Location Filter Panel */}
-      <LocationFilter onLocationSelect={handleLocationSelect} />
+      <LocationFilter
+        onLocationSelect={handleLocationSelect}
+        radiusKm={radiusKm}
+        getMapCenter={getMapCenter}
+        onRadiusChange={setRadiusKm}
+        refreshKey={refreshKey}
+      />
 
       <div className="h-screen w-full">
         <BlackoutMap
           searchLocation={selectedLocation}
           onClearSearchLocation={handleClearSearchLocation}
           selectedTradeId={selectedTradeId}
+          radiusKm={radiusKm}
+          onSettle={handleMapSettle}
         />
       </div>
+
+      {/* Refresh Trades button — bottom center, shown when map may be out of sync */}
+      <button
+        onClick={() => setRefreshKey((k) => k + 1)}
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-950/90 backdrop-blur border border-zinc-700 hover:border-red-500 text-zinc-300 hover:text-red-400 px-4 py-2 rounded-lg text-xs font-mono tracking-wider uppercase transition"
+      >
+        Refresh Trades
+      </button>
 
       {showLogoutModal && (
         <div

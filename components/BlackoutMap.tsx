@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -20,6 +20,20 @@ import MapControls from "./MapControls";
 import HUDOverlay from "./HUDOverlay";
 import CreateTradeModal from "./CreateTradeModal";
 import ChatModal from "./ChatModal";
+
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export type Mode = "view" | "placing-custom" | "setting-location";
 
@@ -41,9 +55,40 @@ const createMyLocationIcon = () => {
 
 function FlyTo({ position }: { position: [number, number] | null }) {
   const map = useMap();
+  const lat = position?.[0];
+  const lng = position?.[1];
   useEffect(() => {
-    if (position) map.setView(position, 15, { animate: true });
-  }, [position, map]);
+    if (lat == null || lng == null) return;
+    map.setView([lat, lng], 15, { animate: true });
+  }, [lat, lng, map]);
+  return null;
+}
+
+function MapCenterTracker({
+  centerRef,
+  onSettle,
+}: {
+  centerRef: React.MutableRefObject<[number, number]>;
+  onSettle: () => void;
+}) {
+  const map = useMap();
+  const settleTimer = useRef<number | undefined>(undefined);
+  const onSettleRef = useRef(onSettle);
+  onSettleRef.current = onSettle;
+
+  useEffect(() => {
+    const handle = () => {
+      const c = map.getCenter();
+      centerRef.current = [c.lat, c.lng];
+      if (settleTimer.current !== undefined) clearTimeout(settleTimer.current);
+      settleTimer.current = window.setTimeout(onSettleRef.current, 450);
+    };
+    map.on("moveend", handle);
+    return () => {
+      map.off("moveend", handle);
+      if (settleTimer.current !== undefined) clearTimeout(settleTimer.current);
+    };
+  }, [map, centerRef]);
   return null;
 }
 
@@ -82,9 +127,11 @@ interface BlackoutMapProps {
   searchLocation?: SearchLocationTarget | null;
   onClearSearchLocation?: () => void;
   selectedTradeId?: number | null;
+  radiusKm?: number;
+  onSettle?: (center: [number, number]) => void;
 }
 
-export default function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId }: BlackoutMapProps) {
+export default function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId, radiusKm, onSettle }: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -175,21 +222,40 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
     onClearSearchLocation?.();
   };
 
-  const handleDeleteTrade = async (id: number) => {
+  const handleDeleteTrade = useCallback(async (id: number) => {
     try {
       await fetch(`/api/map-points?id=${id}`, { method: "DELETE" });
     } catch (err) {
       console.error("Failed to delete trade node:", err);
     }
-  };
+  }, []);
 
-  const handleMessageClick = (
-    tradeOfferId: number,
-    recipientId: number,
-    recipientName: string,
-  ) => {
-    setSelectedChat({ tradeOfferId, recipientId, recipientName });
-  };
+  const handleMessageClick = useCallback(
+    (tradeOfferId: number, recipientId: number, recipientName: string) => {
+      setSelectedChat({ tradeOfferId, recipientId, recipientName });
+    },
+    [],
+  );
+
+  const myLocationIcon = useMemo(() => createMyLocationIcon(), []);
+  const centerRef = useRef<[number, number]>([-36.8485, 174.7645]);
+  const [settledKey, setSettledKey] = useState(0);
+
+  const handleSettle = useCallback(() => {
+    setSettledKey((k) => k + 1);
+    onSettle?.(centerRef.current);
+  }, [onSettle]);
+
+  const filteredLocations = useMemo(() => {
+    if (!radiusKm) return locations;
+    const c = centerRef.current;
+    return locations.filter((loc: any) => {
+      const dist = haversine(c[0], c[1], loc.latitude, loc.longitude);
+      return dist <= radiusKm;
+    });
+    // settledKey triggers re-compute when user stops moving
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locations, radiusKm, settledKey]);
 
   return (
     <div className="w-full h-full relative">
@@ -205,11 +271,12 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
           className="dark:invert"
         />
 
+        <MapCenterTracker centerRef={centerRef} onSettle={handleSettle} />
         <FlyTo position={searchLocation ? [searchLocation.lat, searchLocation.lng] : myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
         <TradeNodeMarkers
-          locations={locations}
+          locations={filteredLocations}
           currentUserId={user?.userID ?? 0}
           onMessageClick={handleMessageClick}
           onDeleteClick={handleDeleteTrade}
@@ -217,7 +284,7 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
         />
 
         {myLocation && (
-          <Marker position={myLocation} icon={createMyLocationIcon()}>
+          <Marker position={myLocation} icon={myLocationIcon}>
             <Popup>
               <div className="p-1 font-sans">
                 <p className="font-bold text-sm text-zinc-900">My Location</p>
@@ -236,7 +303,7 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
         )}
       </MapContainer>
 
-      <HUDOverlay nodeCount={locations.length} myLocation={myLocation} />
+      <HUDOverlay nodeCount={filteredLocations.length} totalCount={locations.length} myLocation={myLocation} />
 
       {mode !== "view" && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-zinc-950/95 border border-zinc-700 px-4 py-2 rounded text-sm text-zinc-200 flex items-center gap-2 shadow-xl">

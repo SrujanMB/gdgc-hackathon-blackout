@@ -4,7 +4,7 @@ import { Marker, Popup } from "react-leaflet";
 import { MessageCircle, Trash2, User } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface CleanMapNode {
   id: number;
@@ -24,9 +24,12 @@ interface TradeNodeMarkersProps {
   openTradeId?: number | null;
 }
 
-const createTradeIcon = () => {
+const TRADE_ICON = (() => {
   const iconHtml = renderToString(
-    <div className="p-2 rounded-full border bg-zinc-900 text-amber-400 border-amber-600 shadow-lg animate-pulse-slow">
+    <div
+      style={{ animation: "marker-fade-in 0.35s ease-out" }}
+      className="p-2 rounded-full border bg-zinc-900 text-amber-400 border-amber-600 shadow-lg animate-pulse-slow"
+    >
       <User size={18} />
     </div>,
   );
@@ -36,9 +39,9 @@ const createTradeIcon = () => {
     iconSize: [34, 34],
     iconAnchor: [17, 17],
   });
-};
+})();
 
-export default function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick, openTradeId }: TradeNodeMarkersProps) {
+export default React.memo(function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick, openTradeId }: TradeNodeMarkersProps) {
   const markerRefs = useRef<Map<number, L.Marker>>(new Map());
 
   useEffect(() => {
@@ -52,11 +55,12 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
 
   return (
     <>
+      <style>{`@keyframes marker-fade-in{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}`}</style>
       {locations.map((node) => (
         <Marker
           key={node.id}
           position={[node.latitude, node.longitude]}
-          icon={createTradeIcon()}
+          icon={TRADE_ICON}
           ref={(ref) => {
             if (ref) markerRefs.current.set(node.id, ref);
           }}
@@ -128,4 +132,4 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
       ))}
     </>
   );
-}
+});

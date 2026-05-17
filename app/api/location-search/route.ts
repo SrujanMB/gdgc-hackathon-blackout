@@ -74,6 +74,9 @@ export async function GET(request: Request) {
     const maxResults = parseInt(searchParams.get("limit") || "10");
     const searchTypes = (searchParams.get("types") || "items").split(",").filter(Boolean);
     const searchDirections = (searchParams.get("directions") || "offers").split(",").filter(Boolean);
+    const centerLat = parseFloat(searchParams.get("centerLat") || "NaN");
+    const centerLng = parseFloat(searchParams.get("centerLng") || "NaN");
+    const maxDistance = parseFloat(searchParams.get("maxDistance") || "NaN");
 
     if (!query || query.length < 1) {
       return NextResponse.json([]);
@@ -119,6 +122,12 @@ export async function GET(request: Request) {
       }
 
       const distance = haversine(userLat, userLng, latitude, longitude);
+
+      if (!isNaN(maxDistance) && !isNaN(centerLat) && !isNaN(centerLng)) {
+        const centerDist = haversine(centerLat, centerLng, latitude, longitude);
+        if (centerDist > maxDistance) return null;
+      }
+
       const userName = offer.User?.name || "Unknown Survivor";
       const offeringTitle = offer.offering_item?.title || "Unknown Item";
       const wantingTitle = offer.wanting_item?.title || "Unknown Item";

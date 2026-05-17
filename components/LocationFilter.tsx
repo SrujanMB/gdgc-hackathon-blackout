@@ -18,10 +18,20 @@ interface LocationSearchResult {
 
 interface LocationFilterProps {
   onLocationSelect: (result: LocationSearchResult) => void;
+  radiusKm: number;
+  getMapCenter: () => [number, number];
+  onRadiusChange: (km: number) => void;
+  refreshKey: number;
 }
+
+const RADII = [5, 10, 25, 50, 0] as const;
 
 export default function LocationFilter({
   onLocationSelect,
+  radiusKm,
+  getMapCenter,
+  onRadiusChange,
+  refreshKey,
 }: LocationFilterProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [userLat, setUserLat] = useState<number | null>(null);
@@ -77,11 +87,9 @@ export default function LocationFilter({
 
       setIsLoading(true);
       try {
-        const response = await fetch(
-          `/api/location-search?q=${encodeURIComponent(
-            searchQuery,
-          )}&lat=${userLat}&lng=${userLng}&limit=8&types=${activeTypes.join(",")}&directions=${activeDirections.join(",")}`,
-        );
+        const [clat, clng] = getMapCenter();
+        let url = `/api/location-search?q=${encodeURIComponent(searchQuery)}&lat=${userLat}&lng=${userLng}&limit=8&types=${activeTypes.join(",")}&directions=${activeDirections.join(",")}&centerLat=${clat}&centerLng=${clng}&maxDistance=${radiusKm}`;
+        const response = await fetch(url);
         const data = await response.json();
         setResults(data);
         setIsOpen(true);
@@ -104,6 +112,8 @@ export default function LocationFilter({
     peopleEnabled,
     offersEnabled,
     requestsEnabled,
+    radiusKm,
+    refreshKey,
   ]);
 
   useEffect(() => {
@@ -235,6 +245,26 @@ export default function LocationFilter({
         >
           Requests
         </button>
+      </div>
+
+      {/* Radius Pills */}
+      <div className="flex items-center gap-1.5 mt-1.5">
+        <span className="text-[10px] text-zinc-600 font-mono mr-0.5 uppercase tracking-wider">
+          Radius
+        </span>
+        {RADII.map((r) => (
+          <button
+            key={r}
+            onClick={() => onRadiusChange(r)}
+            className={`px-2 py-0.5 text-[11px] font-mono rounded-md border transition ${
+              radiusKm === r
+                ? "bg-red-600 border-red-500 text-white"
+                : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
+            }`}
+          >
+            {r === 0 ? "All" : `${r}km`}
+          </button>
+        ))}
       </div>
 
       {/* Dropdown Results — positioned below the pills */}
