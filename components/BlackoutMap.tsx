@@ -9,7 +9,7 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
-import { Navigation, Crosshair, X } from "lucide-react";
+import { Navigation, Crosshair, X, Check } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -462,16 +462,16 @@ export default function BlackoutMap() {
       )}
 
       {tradeSuccessToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 bg-green-950/95 border border-green-600 px-5 py-3 rounded-xl shadow-2xl text-green-300 text-sm font-semibold pointer-events-none">
-          <span className="text-green-400 text-lg">✓</span>
-          Trade Successful!
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-green-900/40 border border-green-700 px-5 py-3 rounded-lg shadow-2xl pointer-events-none">
+          <Check size={16} className="text-green-400" />
+          <span className="text-sm font-bold text-green-400 tracking-wide">Trade Completed</span>
         </div>
       )}
 
       {tradeDeletedToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 bg-red-950/95 border border-red-700 px-5 py-3 rounded-xl shadow-2xl text-red-300 text-sm font-semibold pointer-events-none">
-          <span className="text-red-400 text-lg">✕</span>
-          Trade Cancelled
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-red-900/40 border border-red-700 px-5 py-3 rounded-lg shadow-2xl pointer-events-none">
+          <X size={16} className="text-red-400" />
+          <span className="text-sm font-bold text-red-400 tracking-wide">Trade Cancelled</span>
         </div>
       )}
 
