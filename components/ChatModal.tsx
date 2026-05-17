@@ -30,6 +30,7 @@ interface ChatModalProps {
   seeking: TradeItem[];
   onClose: () => void;
   onMessageSent?: (content: string) => void;
+  onAccepted?: () => void;
 }
 
 // ── Editable trade section ────────────────────────────────────────────────────
@@ -157,6 +158,7 @@ export default function ChatModal({
   seeking,
   onClose,
   onMessageSent,
+  onAccepted,
 }: ChatModalProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -327,13 +329,8 @@ export default function ChatModal({
   const handleAccept = async () => {
     setIsSending(true);
     try {
-      await fetch("/api/map-points", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tradeId: tradeOfferId, status: "completed" }),
-      });
-      await sendQuickMessage("Trade accepted! ✓ Status set to completed.");
-      setIsCompleted(true);
+      await sendQuickMessage("Trade accepted! ✓");
+      onAccepted?.();
     } finally {
       setIsSending(false);
     }

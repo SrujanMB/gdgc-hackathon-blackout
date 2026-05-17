@@ -109,6 +109,7 @@ export default function BlackoutMap() {
   });
   // Tracks messages that arrived while the MessagesHub popup was closed
   const [unreadCount, setUnreadCount] = useState(0);
+  const [tradeSuccessToast, setTradeSuccessToast] = useState(false);
   // Stable ref so the realtime callback always reads the latest locations
   // without needing to be re-subscribed every time locations changes
   const locationsRef = useRef(locations);
@@ -165,6 +166,21 @@ export default function BlackoutMap() {
             content: string;
           };
           if (!msg.sender_id || !msg.trade_offer_id) return;
+
+          // Buyer accepted — notify the trader and clean up
+          if (msg.content === "Trade accepted! ✓") {
+            setSelectedChat((current) =>
+              current?.tradeOfferId === msg.trade_offer_id ? null : current,
+            );
+            setConversations((prev) => {
+              const updated = prev.filter((c) => c.tradeOfferId !== msg.trade_offer_id);
+              localStorage.setItem(storageKey, JSON.stringify(updated));
+              return updated;
+            });
+            setTradeSuccessToast(true);
+            setTimeout(() => setTradeSuccessToast(false), 3500);
+            return;
+          }
 
           // Try to find the sender's name from any visible trade node they own
           const senderNode = locationsRef.current.find(
@@ -416,7 +432,26 @@ export default function BlackoutMap() {
           onMessageSent={(content) =>
             updateLastMessage(selectedChat.tradeOfferId, selectedChat.recipientId, content)
           }
+          onAccepted={() => {
+            const doneId = selectedChat.tradeOfferId;
+            handleDeleteTrade(doneId);
+            setSelectedChat(null);
+            setConversations((prev) => {
+              const updated = prev.filter((c) => c.tradeOfferId !== doneId);
+              localStorage.setItem(storageKey, JSON.stringify(updated));
+              return updated;
+            });
+            setTradeSuccessToast(true);
+            setTimeout(() => setTradeSuccessToast(false), 3500);
+          }}
         />
+      )}
+
+      {tradeSuccessToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 bg-green-950/95 border border-green-600 px-5 py-3 rounded-xl shadow-2xl text-green-300 text-sm font-semibold pointer-events-none">
+          <span className="text-green-400 text-lg">✓</span>
+          Trade Successful!
+        </div>
       )}
 
       <MessagesHub
