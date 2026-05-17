@@ -160,10 +160,7 @@ export async function GET(request: Request) {
 
       if (!tag) return null;
 
-      const primaryItem = tag === "REQUEST" ? wantingTitle : offeringTitle;
-      const label = isQueryEmpty
-        ? `${userName} — ${offeringTitle} ↔ ${wantingTitle}`
-        : `${primaryItem} by ${userName}`;
+      const label = `${offeringTitle} ↔ ${wantingTitle} by ${userName}`;
 
       return {
         id: offer.id,

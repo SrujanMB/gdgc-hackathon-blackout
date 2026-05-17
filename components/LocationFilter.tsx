@@ -298,9 +298,9 @@ export default function LocationFilter({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white font-mono truncate">
-                    {result.label}
+                    {result.offering} ↔ {result.wanting}
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 mt-1">
                     {result.tag && (
                       <span
                         className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
@@ -313,7 +313,7 @@ export default function LocationFilter({
                       </span>
                     )}
                     <span className="text-xs text-zinc-500 font-mono truncate">
-                      {result.offering} ↔ {result.wanting}
+                      by {result.userName}
                     </span>
                   </div>
                 </div>
