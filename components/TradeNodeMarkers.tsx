@@ -48,17 +48,16 @@ const tradeNodeMarkersAreEqual = (
   prev: TradeNodeMarkersProps,
   next: TradeNodeMarkersProps,
 ) => {
+  if (prev.openTradeId !== next.openTradeId) return false;
+  if (prev.currentUserId !== next.currentUserId) return false;
+  if (prev.onMessageClick !== next.onMessageClick) return false;
+  if (prev.onDeleteClick !== next.onDeleteClick) return false;
   if (prev.locations === next.locations) return true;
   if (prev.locations.length !== next.locations.length) return false;
   for (let i = 0; i < prev.locations.length; i++) {
     if (prev.locations[i].id !== next.locations[i].id) return false;
   }
-  return (
-    prev.currentUserId === next.currentUserId &&
-    prev.openTradeId === next.openTradeId &&
-    prev.onMessageClick === next.onMessageClick &&
-    prev.onDeleteClick === next.onDeleteClick
-  );
+  return true;
 };
 
 export default React.memo(function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick, openTradeId }: TradeNodeMarkersProps) {

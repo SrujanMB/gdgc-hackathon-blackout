@@ -47,6 +47,10 @@ export default function LocationFilter({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cachedResultsRef = useRef<{
+    key: string;
+    results: LocationSearchResult[];
+  } | null>(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -64,45 +68,54 @@ export default function LocationFilter({
   }, []);
 
   useEffect(() => {
-    const searchLocations = async () => {
-      if (!searchQuery.trim() || userLat === null || userLng === null) {
-        setResults([]);
-        setIsOpen(false);
-        return;
-      }
+    if (userLat === null || userLng === null) return;
 
-      const activeTypes: string[] = [];
-      if (itemsEnabled) activeTypes.push("items");
-      if (peopleEnabled) activeTypes.push("people");
+    const activeTypes: string[] = [];
+    if (itemsEnabled) activeTypes.push("items");
+    if (peopleEnabled) activeTypes.push("people");
 
-      const activeDirections: string[] = [];
-      if (offersEnabled) activeDirections.push("offers");
-      if (requestsEnabled) activeDirections.push("wants");
+    const activeDirections: string[] = [];
+    if (offersEnabled) activeDirections.push("offers");
+    if (requestsEnabled) activeDirections.push("wants");
 
-      if (activeTypes.length === 0 || activeDirections.length === 0) {
-        setResults([]);
-        setIsOpen(false);
-        return;
-      }
+    if (activeTypes.length === 0 || activeDirections.length === 0) {
+      setResults([]);
+      setIsOpen(false);
+      return;
+    }
 
-      setIsLoading(true);
+    const isQueryEmpty = !searchQuery.trim();
+    const filterKey = `${itemsEnabled}_${peopleEnabled}_${offersEnabled}_${requestsEnabled}_${radiusKm}_${refreshKey}`;
+
+    // Cache hit for empty query when nothing changed
+    if (isQueryEmpty && cachedResultsRef.current?.key === filterKey) {
+      setResults(cachedResultsRef.current.results);
+      setIsOpen(cachedResultsRef.current.results.length > 0);
+      setSelectedIndex(-1);
+      return;
+    }
+
+    setIsLoading(true);
+    const timeout = isQueryEmpty ? 0 : 300;
+    const debounceTimer = setTimeout(async () => {
       try {
         const [clat, clng] = getMapCenter();
-        let url = `/api/location-search?q=${encodeURIComponent(searchQuery)}&lat=${userLat}&lng=${userLng}&limit=8&types=${activeTypes.join(",")}&directions=${activeDirections.join(",")}&centerLat=${clat}&centerLng=${clng}&maxDistance=${radiusKm}`;
+        const url = `/api/location-search?q=${encodeURIComponent(searchQuery)}&lat=${userLat}&lng=${userLng}&limit=8&types=${activeTypes.join(",")}&directions=${activeDirections.join(",")}&centerLat=${clat}&centerLng=${clng}&maxDistance=${radiusKm}`;
         const response = await fetch(url);
         const data = await response.json();
         setResults(data);
         setIsOpen(true);
         setSelectedIndex(-1);
+        if (isQueryEmpty) {
+          cachedResultsRef.current = { key: filterKey, results: data };
+        }
       } catch (error) {
         console.error("Search error:", error);
         setResults([]);
       } finally {
         setIsLoading(false);
       }
-    };
-
-    const debounceTimer = setTimeout(searchLocations, 300);
+    }, timeout);
     return () => clearTimeout(debounceTimer);
   }, [
     searchQuery,
@@ -190,7 +203,7 @@ export default function LocationFilter({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => searchQuery && setIsOpen(true)}
+          onFocus={() => results.length > 0 && setIsOpen(true)}
           className="flex-1 bg-transparent text-white text-sm outline-none placeholder-zinc-500 font-mono"
         />
         {isLoading && (
@@ -271,7 +284,7 @@ export default function LocationFilter({
       {isOpen && results.length > 0 && (
         <div
           ref={dropdownRef}
-          className="mt-1.5 w-full bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-hidden"
+          className="mt-1.5 w-full bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg overflow-y-auto max-h-80"
         >
           {results.map((result, index) => (
             <button
@@ -315,10 +328,10 @@ export default function LocationFilter({
       )}
 
       {/* No Results Message */}
-      {isOpen && searchQuery && results.length === 0 && !isLoading && (
+      {isOpen && results.length === 0 && !isLoading && (
         <div className="mt-1.5 w-full bg-zinc-900 border border-zinc-800 rounded-lg p-4">
           <p className="text-xs text-zinc-400 text-center font-mono">
-            No matches found
+            {searchQuery.trim() ? "No matches found" : "No trades in this area"}
           </p>
         </div>
       )}

@@ -78,9 +78,7 @@ export async function GET(request: Request) {
     const centerLng = parseFloat(searchParams.get("centerLng") || "NaN");
     const maxDistance = parseFloat(searchParams.get("maxDistance") || "NaN");
 
-    if (!query || query.length < 1) {
-      return NextResponse.json([]);
-    }
+    const isQueryEmpty = !query || query.length < 1;
 
     const { data: offers, error } = await supabase.from("Trade_Offer").select(`
         id,
@@ -123,7 +121,7 @@ export async function GET(request: Request) {
 
       const distance = haversine(userLat, userLng, latitude, longitude);
 
-      if (!isNaN(maxDistance) && !isNaN(centerLat) && !isNaN(centerLng)) {
+      if (!isNaN(maxDistance) && maxDistance > 0 && !isNaN(centerLat) && !isNaN(centerLng)) {
         const centerDist = haversine(centerLat, centerLng, latitude, longitude);
         if (centerDist > maxDistance) return null;
       }
@@ -132,28 +130,40 @@ export async function GET(request: Request) {
       const offeringTitle = offer.offering_item?.title || "Unknown Item";
       const wantingTitle = offer.wanting_item?.title || "Unknown Item";
 
-      const matchesUser = userName.toLowerCase().includes(queryLower);
-      const matchesOffering = offeringTitle.toLowerCase().includes(queryLower);
-      const matchesWanting = wantingTitle.toLowerCase().includes(queryLower);
-      const locationName = await getLocationName(latitude, longitude);
-      const matchesLocation = locationName.includes(queryLower);
-
       let tag: "OFFER" | "REQUEST" | "" = "";
 
-      if (searchTypes.includes("items") && searchDirections.includes("offers") && matchesOffering) {
-        tag = "OFFER";
-      } else if (searchTypes.includes("items") && searchDirections.includes("wants") && matchesWanting) {
-        tag = "REQUEST";
-      } else if (searchTypes.includes("people") && matchesUser) {
-        tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
-      } else if (matchesLocation) {
-        tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
+      if (isQueryEmpty) {
+        if (searchTypes.includes("items") && searchDirections.includes("offers")) {
+          tag = "OFFER";
+        } else if (searchTypes.includes("items") && searchDirections.includes("wants")) {
+          tag = "REQUEST";
+        } else if (searchTypes.includes("people")) {
+          tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
+        }
+      } else {
+        const matchesUser = userName.toLowerCase().includes(queryLower);
+        const matchesOffering = offeringTitle.toLowerCase().includes(queryLower);
+        const matchesWanting = wantingTitle.toLowerCase().includes(queryLower);
+        const locationName = await getLocationName(latitude, longitude);
+        const matchesLocation = locationName.includes(queryLower);
+
+        if (searchTypes.includes("items") && searchDirections.includes("offers") && matchesOffering) {
+          tag = "OFFER";
+        } else if (searchTypes.includes("items") && searchDirections.includes("wants") && matchesWanting) {
+          tag = "REQUEST";
+        } else if (searchTypes.includes("people") && matchesUser) {
+          tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
+        } else if (matchesLocation) {
+          tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
+        }
       }
 
       if (!tag) return null;
 
       const primaryItem = tag === "REQUEST" ? wantingTitle : offeringTitle;
-      const label = `${primaryItem} by ${userName}`;
+      const label = isQueryEmpty
+        ? `${userName} — ${offeringTitle} ↔ ${wantingTitle}`
+        : `${primaryItem} by ${userName}`;
 
       return {
         id: offer.id,
@@ -174,7 +184,7 @@ export async function GET(request: Request) {
         (result: any): result is (typeof resultsPromises)[0] => result !== null,
       )
       .sort((a: any, b: any) => a.distance - b.distance)
-      .slice(0, maxResults);
+      .slice(0, isQueryEmpty ? 50 : maxResults);
 
     return NextResponse.json(results);
   } catch (error: any) {

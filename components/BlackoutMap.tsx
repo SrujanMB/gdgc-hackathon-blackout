@@ -404,6 +404,17 @@ export default React.memo(function BlackoutMap({ searchLocation, onClearSearchLo
     });
   };
 
+  const handleMessageClickRef = useRef(handleMessageClick);
+  handleMessageClickRef.current = handleMessageClick;
+
+  useEffect(() => {
+    if (selectedTradeId == null || !user) return;
+    const node = locationsRef.current.find((loc) => loc.id === selectedTradeId);
+    if (node && node.userId !== user.userID) {
+      handleMessageClickRef.current(node.id, node.userId, node.name);
+    }
+  }, [selectedTradeId, user]);
+
   const myLocationIcon = useMemo(() => createMyLocationIcon(), []);
   const centerRef = useRef<[number, number]>([-36.8485, 174.7645]);
   const [settledKey, setSettledKey] = useState(0);
