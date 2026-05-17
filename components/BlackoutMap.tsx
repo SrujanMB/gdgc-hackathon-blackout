@@ -6,6 +6,7 @@ import {
   TileLayer,
   Marker,
   Popup,
+  Circle,
   useMapEvents,
   useMap,
 } from "react-leaflet";
@@ -271,7 +272,24 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation, sel
           className="dark:invert"
         />
 
+        <style>{`@keyframes circle-fade-in{from{opacity:0}}.animate-circle-fade-in{animation:circle-fade-in 0.4s ease-out}`}</style>
         <MapCenterTracker centerRef={centerRef} onSettle={handleSettle} />
+        {radiusKm ? (
+          <Circle
+            key={`${centerRef.current[0].toFixed(3)}_${centerRef.current[1].toFixed(3)}_${radiusKm}`}
+            center={centerRef.current}
+            radius={radiusKm * 1000}
+            pathOptions={{
+              color: "#a1a1aa",
+              weight: 1.5,
+              opacity: 0.5,
+              fillColor: "#a1a1aa",
+              fillOpacity: 0.06,
+              dashArray: "4 8",
+              className: "animate-circle-fade-in",
+            }}
+          />
+        ) : null}
         <FlyTo position={searchLocation ? [searchLocation.lat, searchLocation.lng] : myLocation} />
         <MapClickHandler mode={mode} onMapClick={handleMapClick} />
 
