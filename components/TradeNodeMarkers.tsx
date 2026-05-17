@@ -22,11 +22,17 @@ interface TradeNodeMarkersProps {
   onDeleteClick: (tradeOfferId: number) => void;
 }
 
-const createTradeIcon = () => {
+const createTradeIcon = (isOwn: boolean) => {
   const iconHtml = renderToString(
-    <div className="p-2 rounded-full border bg-zinc-900 text-amber-400 border-amber-600 shadow-lg animate-pulse-slow">
-      <User size={18} />
-    </div>,
+    isOwn ? (
+      <div className="p-2 rounded-full border bg-orange-950 text-orange-400 border-orange-500 shadow-lg">
+        <User size={18} />
+      </div>
+    ) : (
+      <div className="p-2 rounded-full border bg-red-950 text-red-400 border-red-600 shadow-lg">
+        <User size={18} />
+      </div>
+    ),
   );
   return L.divIcon({
     html: iconHtml,
@@ -43,7 +49,7 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
         <Marker
           key={node.id}
           position={[node.latitude, node.longitude]}
-          icon={createTradeIcon()}
+          icon={createTradeIcon(node.userId === currentUserId)}
         >
           <Popup>
             <div className="p-1 min-w-[220px] font-sans text-zinc-200">

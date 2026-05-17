@@ -62,12 +62,20 @@ function TradeSection({
     : "border-amber-800/50 bg-amber-950/40";
   const labelClass = colour === "emerald" ? "text-emerald-400" : "text-amber-400";
 
+  const [saveError, setSaveError] = useState("");
+
   const handleSave = async () => {
     if (!title.trim()) return;
     setSaving(true);
-    await onSave(title.trim(), desc.trim());
-    setSaving(false);
-    setEditing(false);
+    setSaveError("");
+    try {
+      await onSave(title.trim(), desc.trim());
+      setEditing(false);
+    } catch (err: any) {
+      setSaveError(err.message ?? "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -113,12 +121,15 @@ function TradeSection({
               Save
             </button>
             <button
-              onClick={() => { setTitle(item?.title ?? ""); setDesc(item?.description ?? ""); setEditing(false); }}
+              onClick={() => { setTitle(item?.title ?? ""); setDesc(item?.description ?? ""); setSaveError(""); setEditing(false); }}
               className="px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors"
             >
               Cancel
             </button>
           </div>
+          {saveError && (
+            <p className="text-[10px] text-red-400 mt-1">{saveError}</p>
+          )}
         </div>
       ) : item ? (
         <>
@@ -294,14 +305,20 @@ export default function ChatModal({
     newDesc: string,
     role: "offering" | "seeking",
   ) => {
-    await fetch("/api/map-points", {
+    const res = await fetch("/api/map-points", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId: item.id, title: newTitle, description: newDesc || null }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error ?? "Failed to update item");
+    }
+    // Update local state immediately so the editor sees the change right away
     const updated = { ...item, title: newTitle, description: newDesc || null };
     if (role === "offering") setOfferedItem(updated);
     else setSoughtItem(updated);
+    // Notify the other party via chat (realtime subscription will also push the DB change)
     await sendQuickMessage(
       `Updated ${role === "offering" ? "offering" : "exchange"} item to: ${newTitle}${newDesc ? ` — ${newDesc}` : ""}`,
     );
