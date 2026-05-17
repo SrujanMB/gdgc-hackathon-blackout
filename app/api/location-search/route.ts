@@ -72,12 +72,13 @@ export async function GET(request: Request) {
     const userLat = parseFloat(searchParams.get("lat") || "0");
     const userLng = parseFloat(searchParams.get("lng") || "0");
     const maxResults = parseInt(searchParams.get("limit") || "10");
+    const searchTypes = (searchParams.get("types") || "items").split(",").filter(Boolean);
+    const searchDirections = (searchParams.get("directions") || "offers").split(",").filter(Boolean);
 
     if (!query || query.length < 1) {
       return NextResponse.json([]);
     }
 
-    // Fetch all trade offers with user names and item info
     const { data: offers, error } = await supabase.from("Trade_Offer").select(`
         id,
         location,
@@ -93,7 +94,6 @@ export async function GET(request: Request) {
 
     const queryLower = query.toLowerCase();
 
-    // Parse locations and calculate distances
     const resultsPromises = (offers || []).map(async (offer: any) => {
       let latitude = 0;
       let longitude = 0;
@@ -123,35 +123,28 @@ export async function GET(request: Request) {
       const offeringTitle = offer.offering_item?.title || "Unknown Item";
       const wantingTitle = offer.wanting_item?.title || "Unknown Item";
 
-      // Check if query matches user name, offering, or wanting items
       const matchesUser = userName.toLowerCase().includes(queryLower);
       const matchesOffering = offeringTitle.toLowerCase().includes(queryLower);
       const matchesWanting = wantingTitle.toLowerCase().includes(queryLower);
-
-      // Also check if query matches location/suburb/city
       const locationName = await getLocationName(latitude, longitude);
       const matchesLocation = locationName.includes(queryLower);
 
-      if (
-        !matchesUser &&
-        !matchesOffering &&
-        !matchesWanting &&
-        !matchesLocation
-      ) {
-        return null;
+      let tag: "OFFER" | "REQUEST" | "" = "";
+
+      if (searchTypes.includes("items") && searchDirections.includes("offers") && matchesOffering) {
+        tag = "OFFER";
+      } else if (searchTypes.includes("items") && searchDirections.includes("wants") && matchesWanting) {
+        tag = "REQUEST";
+      } else if (searchTypes.includes("people") && matchesUser) {
+        tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
+      } else if (matchesLocation) {
+        tag = searchDirections.includes("offers") ? "OFFER" : "REQUEST";
       }
 
-      // Always show the matched item first, then the person
-      let label;
-      if (matchesOffering) {
-        label = `${offeringTitle} by ${userName}`;
-      } else if (matchesWanting) {
-        label = `${wantingTitle} — ${userName}`;
-      } else if (matchesLocation) {
-        label = `${locationName} — ${userName}`;
-      } else {
-        label = `${offeringTitle} by ${userName}`;
-      }
+      if (!tag) return null;
+
+      const primaryItem = tag === "REQUEST" ? wantingTitle : offeringTitle;
+      const label = `${primaryItem} by ${userName}`;
 
       return {
         id: offer.id,
@@ -161,6 +154,7 @@ export async function GET(request: Request) {
         distance,
         userName,
         label,
+        tag,
         offering: offeringTitle,
         wanting: wantingTitle,
       };
