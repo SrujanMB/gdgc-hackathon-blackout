@@ -4,6 +4,7 @@ import { Marker, Popup } from "react-leaflet";
 import { MessageCircle, Trash2, User } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import L from "leaflet";
+import { useEffect, useRef } from "react";
 
 interface CleanMapNode {
   id: number;
@@ -20,6 +21,7 @@ interface TradeNodeMarkersProps {
   currentUserId: number;
   onMessageClick: (tradeOfferId: number, userId: number, name: string) => void;
   onDeleteClick: (tradeOfferId: number) => void;
+  openTradeId?: number | null;
 }
 
 const createTradeIcon = () => {
@@ -36,7 +38,18 @@ const createTradeIcon = () => {
   });
 };
 
-export default function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick }: TradeNodeMarkersProps) {
+export default function TradeNodeMarkers({ locations, currentUserId, onMessageClick, onDeleteClick, openTradeId }: TradeNodeMarkersProps) {
+  const markerRefs = useRef<Map<number, L.Marker>>(new Map());
+
+  useEffect(() => {
+    if (openTradeId != null) {
+      const marker = markerRefs.current.get(openTradeId);
+      if (marker) {
+        marker.openPopup();
+      }
+    }
+  }, [openTradeId]);
+
   return (
     <>
       {locations.map((node) => (
@@ -44,6 +57,9 @@ export default function TradeNodeMarkers({ locations, currentUserId, onMessageCl
           key={node.id}
           position={[node.latitude, node.longitude]}
           icon={createTradeIcon()}
+          ref={(ref) => {
+            if (ref) markerRefs.current.set(node.id, ref);
+          }}
         >
           <Popup>
             <div className="p-1 min-w-[220px] font-sans text-zinc-200">

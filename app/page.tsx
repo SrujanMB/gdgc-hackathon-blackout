@@ -24,6 +24,7 @@ export default function HomePage() {
     lat: number;
     lng: number;
   } | null>(null);
+  const [selectedTradeId, setSelectedTradeId] = React.useState<number | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -49,16 +50,16 @@ export default function HomePage() {
   };
 
   const handleLocationSelect = (result: any) => {
-    // User selected a location from the dropdown
     setSelectedLocation({
       lat: result.latitude,
       lng: result.longitude,
     });
+    setSelectedTradeId(result.id);
   };
 
   const handleClearSearchLocation = () => {
-    // Called when user clicks "Locate Me" or places a custom node
     setSelectedLocation(null);
+    setSelectedTradeId(null);
   };
 
   return (
@@ -91,7 +92,7 @@ export default function HomePage() {
       <LocationFilter onLocationSelect={handleLocationSelect} />
 
       <div className="h-screen w-full">
-        <BlackoutMap searchLocation={selectedLocation} onClearSearchLocation={handleClearSearchLocation} />
+        <BlackoutMap searchLocation={selectedLocation} onClearSearchLocation={handleClearSearchLocation} selectedTradeId={selectedTradeId} />
       </div>
     </main>
   );

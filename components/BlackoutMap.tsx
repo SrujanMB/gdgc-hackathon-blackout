@@ -81,9 +81,10 @@ export interface SearchLocationTarget {
 interface BlackoutMapProps {
   searchLocation?: SearchLocationTarget | null;
   onClearSearchLocation?: () => void;
+  selectedTradeId?: number | null;
 }
 
-export default function BlackoutMap({ searchLocation, onClearSearchLocation }: BlackoutMapProps) {
+export default function BlackoutMap({ searchLocation, onClearSearchLocation, selectedTradeId }: BlackoutMapProps) {
   const { user } = useAuth();
   const [locations, setLocations] = useState<any[]>([]);
   const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
@@ -212,6 +213,7 @@ export default function BlackoutMap({ searchLocation, onClearSearchLocation }: B
           currentUserId={user?.userID ?? 0}
           onMessageClick={handleMessageClick}
           onDeleteClick={handleDeleteTrade}
+          openTradeId={selectedTradeId}
         />
 
         {myLocation && (
